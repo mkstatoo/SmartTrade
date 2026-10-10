@@ -1,0 +1,57 @@
+name: live-chain-test
+on:
+  workflow_dispatch:
+  push:
+    branches: ["live-test/**"]
+permissions:
+  contents: write
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: smartcopy
+          POSTGRES_PASSWORD: smartcopy_test
+          POSTGRES_DB: smartcopy_live
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U smartcopy -d smartcopy_live"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://smartcopy:smartcopy_test@localhost:5432/smartcopy_live
+      RPC_ETHEREUM_1: ${{ secrets.RPC_ETHEREUM_1 }}
+      RPC_BASE_1: ${{ secrets.RPC_BASE_1 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements-dev.txt
+      - name: Unit tests that need no network
+        run: python -m pytest -q tests/test_chain_abi.py tests/test_chain_rpc.py
+      - name: Probe providers
+        run: python scripts/provider_probe.py
+      - name: Real ingestion + independent cross-check
+        id: live
+        continue-on-error: true
+        run: python scripts/live_verify.py
+      - name: Publish reports to branch live-test-reports
+        if: always()
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout --orphan live-test-reports
+          git rm -rf --cached . >/dev/null 2>&1 || true
+          git add -f reports/probe.md reports/probe.json reports/selection.json reports/live_verify.md reports/live_verify.json 2>/dev/null || true
+          git commit -m "live test reports for ${GITHUB_SHA}" || echo "nothing to commit"
+          git push -f origin live-test-reports
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-reports
+          path: reports/
+      - name: Fail the job if the live check failed
+        if: steps.live.outcome == 'failure'
+        run: exit 1

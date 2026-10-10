@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: smartcopy
+      POSTGRES_USER: smartcopy
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartcopy -d smartcopy"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://smartcopy:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/smartcopy
+      PAPER_API_KEY: ${PAPER_API_KEY:?set PAPER_API_KEY}
+      PAPER_CLOCK: ${PAPER_CLOCK:-live}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

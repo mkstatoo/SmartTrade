@@ -1,0 +1,143 @@
+-- Smart Copy Trading — FULL CURRENT SCHEMA (v0.4.2).
+-- Applies to a FRESH database only (all statements are idempotent). Existing databases are upgraded with
+-- `python -m app.migrate`, which applies data/migrations/* in order. tests/test_postgres.py proves that a fresh
+-- install and a migrated legacy database end up with the same catalog (columns, constraints, indexes).
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS tokens (
+    chain TEXT NOT NULL, contract TEXT NOT NULL, symbol TEXT,
+    decimals INT CHECK (decimals BETWEEN 0 AND 255),
+    PRIMARY KEY (chain, contract)
+);
+
+CREATE TABLE IF NOT EXISTS wallets (
+    chain TEXT NOT NULL, address TEXT NOT NULL, label TEXT,
+    is_team BOOLEAN NOT NULL DEFAULT FALSE, is_router BOOLEAN NOT NULL DEFAULT FALSE, is_cex BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (chain, address),
+    -- mirrors app.models.normalize_address: EVM addresses are stored lower-case, other chains keep their case
+    CHECK (NOT (chain IN ('ethereum','base','arbitrum','optimism','polygon','bsc','avalanche') OR address LIKE '0x%')
+           OR address = lower(address))
+);
+
+CREATE TABLE IF NOT EXISTS wallet_events (
+    id BIGSERIAL PRIMARY KEY, tx_hash TEXT NOT NULL, log_index BIGINT,
+    wallet_chain TEXT NOT NULL, wallet_address TEXT NOT NULL,
+    token_chain TEXT NOT NULL, token_contract TEXT NOT NULL, token_symbol TEXT,
+    ts TIMESTAMPTZ NOT NULL, block_number BIGINT, block_hash TEXT,
+    ingested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    side TEXT NOT NULL CHECK (side IN ('BUY','SELL','CEX_IN','CEX_OUT','TRANSFER')),
+    usd_value NUMERIC CHECK (usd_value IS NULL OR usd_value >= 0),
+    price NUMERIC CHECK (price IS NULL OR price > 0),
+    liquidity_usd NUMERIC CHECK (liquidity_usd IS NULL OR liquidity_usd >= 0),
+    source TEXT,
+    FOREIGN KEY (wallet_chain, wallet_address) REFERENCES wallets (chain, address),
+    FOREIGN KEY (token_chain, token_contract) REFERENCES tokens (chain, contract),
+    UNIQUE NULLS NOT DISTINCT (wallet_chain, tx_hash, log_index, wallet_address, side)
+);
+CREATE INDEX IF NOT EXISTS idx_events_token_ts ON wallet_events (token_chain, token_contract, ts);
+CREATE INDEX IF NOT EXISTS idx_events_wallet_ts ON wallet_events (wallet_chain, wallet_address, ts);
+
+CREATE TABLE IF NOT EXISTS price_bars (
+    chain TEXT NOT NULL, token_contract TEXT NOT NULL, ts TIMESTAMPTZ NOT NULL, timeframe TEXT NOT NULL,
+    open NUMERIC NOT NULL CHECK (open > 0), high NUMERIC NOT NULL CHECK (high > 0),
+    low NUMERIC NOT NULL CHECK (low > 0), close NUMERIC NOT NULL CHECK (close > 0),
+    volume_usd NUMERIC NOT NULL CHECK (volume_usd >= 0),
+    PRIMARY KEY (chain, token_contract, timeframe, ts),
+    CHECK (low <= open AND low <= close AND high >= open AND high >= close)
+);
+
+CREATE TABLE IF NOT EXISTS signals (
+    id BIGSERIAL PRIMARY KEY, chain TEXT NOT NULL, token_contract TEXT NOT NULL,
+    ts TIMESTAMPTZ NOT NULL, stats_as_of_ts TIMESTAMPTZ NOT NULL,
+    wallet_count INT NOT NULL CHECK (wallet_count >= 0),
+    score NUMERIC NOT NULL CHECK (score BETWEEN 0 AND 100),
+    confidence NUMERIC NOT NULL CHECK (confidence BETWEEN 0 AND 1),
+    action TEXT NOT NULL CHECK (action IN ('WAIT','ENTER','EXIT')),
+    reason JSONB,
+    FOREIGN KEY (chain, token_contract) REFERENCES tokens (chain, contract),
+    CHECK (stats_as_of_ts <= ts)
+);
+
+CREATE TABLE IF NOT EXISTS paper_trades (
+    id BIGSERIAL PRIMARY KEY, signal_id BIGINT REFERENCES signals (id),
+    chain TEXT NOT NULL, token_contract TEXT NOT NULL,
+    side TEXT NOT NULL CHECK (side IN ('BUY','SELL')), ts TIMESTAMPTZ NOT NULL,
+    price NUMERIC NOT NULL CHECK (price > 0), qty NUMERIC NOT NULL CHECK (qty > 0),
+    notional_usd NUMERIC NOT NULL CHECK (notional_usd > 0),
+    status TEXT NOT NULL CHECK (status IN ('OPEN','CLOSED','REJECTED')),
+    fee_usd NUMERIC NOT NULL DEFAULT 0 CHECK (fee_usd >= 0),
+    slippage_usd NUMERIC NOT NULL DEFAULT 0 CHECK (slippage_usd >= 0),
+    gas_usd NUMERIC NOT NULL DEFAULT 0 CHECK (gas_usd >= 0),
+    portfolio_id TEXT NOT NULL DEFAULT 'default',
+    FOREIGN KEY (chain, token_contract) REFERENCES tokens (chain, contract)
+);
+CREATE INDEX IF NOT EXISTS idx_paper_trades_portfolio ON paper_trades (portfolio_id, id);
+
+-- ---------------------------------------------------------------- durable paper portfolio (v0.4.2)
+CREATE TABLE IF NOT EXISTS paper_portfolios (
+    portfolio_id TEXT PRIMARY KEY,
+    initial_cash_usd NUMERIC NOT NULL CHECK (initial_cash_usd > 0),
+    cash_usd NUMERIC NOT NULL,
+    realized_pnl_usd NUMERIC NOT NULL DEFAULT 0,
+    peak_equity_usd NUMERIC NOT NULL CHECK (peak_equity_usd > 0),
+    max_drawdown_pct NUMERIC NOT NULL DEFAULT 0 CHECK (max_drawdown_pct BETWEEN 0 AND 100),
+    now_ts BIGINT NOT NULL DEFAULT 0 CHECK (now_ts >= 0),
+    slippage_bps NUMERIC NOT NULL CHECK (slippage_bps >= 0 AND slippage_bps < 10000),
+    fee_bps NUMERIC NOT NULL CHECK (fee_bps >= 0),
+    gas_usd NUMERIC NOT NULL CHECK (gas_usd >= 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS paper_positions (
+    portfolio_id TEXT NOT NULL REFERENCES paper_portfolios (portfolio_id) ON DELETE CASCADE,
+    token_key TEXT NOT NULL,
+    qty NUMERIC NOT NULL CHECK (qty > 0), entry NUMERIC NOT NULL CHECK (entry > 0),
+    cost NUMERIC NOT NULL CHECK (cost > 0), notional NUMERIC NOT NULL CHECK (notional > 0),
+    entry_fee_usd NUMERIC NOT NULL CHECK (entry_fee_usd >= 0), entry_gas_usd NUMERIC NOT NULL CHECK (entry_gas_usd >= 0),
+    reference_price NUMERIC NOT NULL CHECK (reference_price > 0),
+    fee_bps NUMERIC NOT NULL CHECK (fee_bps >= 0), slippage_bps NUMERIC NOT NULL CHECK (slippage_bps >= 0),
+    gas_usd NUMERIC NOT NULL CHECK (gas_usd >= 0),
+    target_return_pct NUMERIC CHECK (target_return_pct IS NULL OR target_return_pct > 0),
+    stop_loss_pct NUMERIC CHECK (stop_loss_pct IS NULL OR stop_loss_pct > 0),
+    entry_ts BIGINT NOT NULL CHECK (entry_ts >= 0), signal_id BIGINT REFERENCES signals (id),
+    PRIMARY KEY (portfolio_id, token_key)
+);
+
+CREATE TABLE IF NOT EXISTS paper_price_book (
+    portfolio_id TEXT NOT NULL REFERENCES paper_portfolios (portfolio_id) ON DELETE CASCADE,
+    token_key TEXT NOT NULL, price NUMERIC NOT NULL CHECK (price > 0),
+    price_ts BIGINT NOT NULL CHECK (price_ts >= 0), last_bar_ts BIGINT NOT NULL CHECK (last_bar_ts >= 0),
+    PRIMARY KEY (portfolio_id, token_key)
+);
+
+CREATE TABLE IF NOT EXISTS paper_cooldowns (
+    portfolio_id TEXT NOT NULL REFERENCES paper_portfolios (portfolio_id) ON DELETE CASCADE,
+    token_key TEXT NOT NULL, until_ts BIGINT NOT NULL CHECK (until_ts >= 0),
+    PRIMARY KEY (portfolio_id, token_key)
+);
+
+CREATE TABLE IF NOT EXISTS paper_closed_trades (
+    id BIGSERIAL PRIMARY KEY,
+    portfolio_id TEXT NOT NULL REFERENCES paper_portfolios (portfolio_id) ON DELETE CASCADE,
+    token_key TEXT NOT NULL, entry NUMERIC NOT NULL CHECK (entry > 0), exit_price NUMERIC NOT NULL CHECK (exit_price > 0),
+    market_level NUMERIC NOT NULL CHECK (market_level > 0), qty NUMERIC NOT NULL CHECK (qty > 0),
+    cost NUMERIC NOT NULL CHECK (cost > 0), pnl_usd NUMERIC NOT NULL,
+    exit_fee_usd NUMERIC NOT NULL CHECK (exit_fee_usd >= 0), exit_gas_usd NUMERIC NOT NULL CHECK (exit_gas_usd >= 0),
+    reason TEXT NOT NULL CHECK (reason IN ('stop','target','time','manual','risk')),
+    entry_ts BIGINT NOT NULL, exit_ts BIGINT NOT NULL, signal_id BIGINT REFERENCES signals (id),
+    CHECK (exit_ts >= entry_ts)
+);
+CREATE INDEX IF NOT EXISTS idx_paper_closed_portfolio ON paper_closed_trades (portfolio_id, id);
+
+-- rows that a migration could not keep (they violated a constraint the new schema enforces); nothing is silently dropped
+CREATE TABLE IF NOT EXISTS legacy_quarantine (
+    id BIGSERIAL PRIMARY KEY, source_table TEXT NOT NULL, reason TEXT NOT NULL, row JSONB NOT NULL,
+    quarantined_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO schema_migrations (version) VALUES ('001_v03_to_v04'), ('002_v0_4_1'), ('003_v0_4_2')
+ON CONFLICT DO NOTHING;

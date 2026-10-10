@@ -1,0 +1,53 @@
+name: tests
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: smartcopy
+          POSTGRES_PASSWORD: smartcopy_test
+          POSTGRES_DB: smartcopy_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U smartcopy -d smartcopy_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://smartcopy:smartcopy_test@localhost:5432/smartcopy_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: pip install -r requirements-dev.txt
+      - name: PostgreSQL server binaries (deployment tests start, kill and restore their own cluster)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-16 >/dev/null
+      - name: Migrate a fresh database twice (must be idempotent)
+        env:
+          DATABASE_URL: postgresql://smartcopy:smartcopy_test@localhost:5432/smartcopy_test
+        run: |
+          python -m app.migrate
+          python -m app.migrate | grep -q "nothing (already up to date)"
+      - name: Tests (PostgreSQL-backed tests must not be skipped)
+        run: |
+          python -m pytest -q -rs | tee pytest.out
+          ! grep -qi "skipped" pytest.out
+      - name: Independent PostgreSQL verification (own cluster)
+        run: |
+          python scripts/pg_verify.py
+      - name: Keep the raw evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pg-evidence
+          path: docs/PG_EVIDENCE.txt
+      - name: Compose file is valid
+        env:
+          POSTGRES_PASSWORD: x
+          PAPER_API_KEY: x
+        run: docker compose config -q
