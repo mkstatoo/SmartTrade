@@ -47,6 +47,8 @@ class FakeChain:
         self.blocks = {}                 # number -> dict(hash,parent,ts,logs)
         self.t0, self.calls, self.hook = t0, [], None
         self.max_range = None
+        self.evm = {}                    # (to, data) -> eth_call result; absent = revert
+        self.tx_meta = {}                # tx_hash -> {from, status, gas_used, egp}
         parent = "0x" + "00" * 32
         for n in range(length):
             parent = self._mk(n, parent, salt, (logs_at or {}).get(n, []))
@@ -104,9 +106,28 @@ class FakeChain:
                     continue
                 if addresses and l["address"] not in addresses:
                     continue
-                out.append({"block_number": n, "block_hash": b["hash"], "tx_hash": _h("tx", n, i // 2),
+                out.append({"block_number": n, "block_hash": b["hash"], "tx_hash": l.get("tx") or _h("tx", n, i // 2),
                             "log_index": i, "address": l["address"], "topics": list(l["topics"]), "data": l["data"]})
         return out
+
+    def call(self, to, data, block=None):
+        self._tick("call", to, data)
+        if (to, data) not in self.evm:
+            raise RpcError("execution reverted", 3)
+        return self.evm[(to, data)]
+
+    def receipt(self, tx_hash):
+        self._tick("receipt", tx_hash)
+        meta = self.tx_meta.get(tx_hash)
+        if meta is None:
+            raise RpcError("receipt not available")
+        for n, b in self.blocks.items():
+            logs = [{"block_number": n, "block_hash": b["hash"], "tx_hash": tx_hash, "log_index": i, "address": l["address"],
+                     "topics": list(l["topics"]), "data": l["data"]} for i, l in enumerate(b["logs"]) if l.get("tx") == tx_hash]
+            if logs:
+                return {"tx_hash": tx_hash, "block_number": n, "block_hash": b["hash"], "from": meta["from"], "status": meta["status"],
+                        "gas_used": meta["gas_used"], "effective_gas_price": meta["egp"], "logs": logs}
+        raise RpcError("receipt not available")
 
     # ---- raw JSON-RPC view (for the HTTP mock)
     chain_id = 1
@@ -128,4 +149,16 @@ class FakeChain:
             return [{"blockNumber": hex(l["block_number"]), "blockHash": l["block_hash"], "transactionHash": l["tx_hash"],
                      "logIndex": hex(l["log_index"]), "address": l["address"], "topics": l["topics"], "data": l["data"],
                      "removed": False} for l in res]
+        if method == "eth_call":
+            return self.call(params[0]["to"], params[0]["data"])
+        if method == "eth_getTransactionReceipt":
+            try:
+                r = self.receipt(params[0])
+            except RpcError:
+                return None
+            return {"transactionHash": r["tx_hash"], "blockNumber": hex(r["block_number"]), "blockHash": r["block_hash"], "from": r["from"],
+                    "status": hex(r["status"]), "gasUsed": hex(r["gas_used"]), "effectiveGasPrice": hex(r["effective_gas_price"]),
+                    "logs": [{"blockNumber": hex(l["block_number"]), "blockHash": l["block_hash"], "transactionHash": l["tx_hash"],
+                              "logIndex": hex(l["log_index"]), "address": l["address"], "topics": l["topics"], "data": l["data"],
+                              "removed": False} for l in r["logs"]]}
         raise RpcError("method not found", -32601)

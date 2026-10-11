@@ -23,6 +23,15 @@ M = [  # (name, file, old, new, tests)
     ("ingest: logs not checked against headers", "app/chain/ingest.py", 'if h is None or h["hash"] != l["block_hash"]:', "if h is None:", ["tests/test_chain_ingest.py"]),
     ("ingest: cursor not advanced", "app/chain/ingest.py", 'conn.execute("UPDATE chain_cursor SET next_block=%s, updated_at=now() WHERE chain=%s", (hi + 1, chain))', "pass", ["tests/test_chain_ingest.py"]),
     ("schema: log identity not unique (fresh != migrated)", "data/schema.sql", "CONSTRAINT uq_chain_logs_identity UNIQUE (chain, block_hash, tx_hash, log_index)", "CONSTRAINT uq_chain_logs_identity UNIQUE (chain, block_hash, tx_hash)", ["tests/test_postgres.py"]),
+    ("market: pool accepted without factory registry check", "app/chain/market.py", "if gp is not None and dec_address(gp) == pool:\n            return Pool(pool, \"uniswap_v3\"", "if gp is not None:\n            return Pool(pool, \"uniswap_v3\"", ["tests/test_market.py", "tests/test_pipeline.py"]),
+    ("market: V3 swap sign flipped", "app/chain/market.py", "return int(fields[\"amount0\"]), int(fields[\"amount1\"])", "return -int(fields[\"amount0\"]), -int(fields[\"amount1\"])", ["tests/test_market.py"]),
+    ("pipeline: wallet is not tx.from", "app/chain/pipeline.py", 'wallet = tx["from_addr"]', 'wallet = pools[sw[0]["pool"]].token0', ["tests/test_pipeline.py"]),
+    ("pipeline: sender-delta check skipped", "app/chain/pipeline.py", 'conf = "confirmed" if (_sign(delta) == _sign(net[t]) and rel <= tol) else "mismatch"', 'conf = "confirmed"', ["tests/test_pipeline.py"]),
+    ("pipeline: zero sender delta attributed anyway", "app/chain/pipeline.py", "                if delta == 0:\n", "                if False:\n", ["tests/test_pipeline.py"]),
+    ("pipeline: ETH outliers kept", "app/chain/pipeline.py", "if med > 0 and abs(px - med) / med > tol:", "if False:", ["tests/test_pipeline.py"]),
+    ("pipeline: receipt not cross-checked with getLogs", "app/chain/pipeline.py", "if rc[\"block_hash\"] != block_hash or not stored <= got:", "if False:", ["tests/test_pipeline.py"]),
+    ("pipeline: gas attached to every trade", "app/chain/pipeline.py", "m[\"gas_usd\"] = gas if i == 0 else Decimal(0)", "m[\"gas_usd\"] = gas", ["tests/test_pipeline.py"]),
+    ("pipeline: mismatch trades enter PnL", "app/chain/pipeline.py", "AND confidence='confirmed' \"", "\"", ["tests/test_pipeline.py"]),
     ("decoder: V3 tick unsigned", "app/chain/abi.py", '"tick": _int(data, 4, 24)', '"tick": _uint(data, 4, 24)', ["tests/test_chain_abi.py"]),
 ]
 
