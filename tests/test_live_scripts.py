@@ -93,3 +93,88 @@ def test_provider_limited_to_one_block_per_query_still_works_and_agrees(tmp_path
         assert json.loads((tmp_path / "live_verify.json").read_text())["reports"][0]["passed"]
     finally:
         drop_db(name); sn.close(); sw.close()
+
+
+# ---------------------------------------------------------------------------------------------- market_run.py
+def _market_setup(tmp_path, feed_price=3025, with_feed=True, verifier_tamper=False):
+    import fake_market as fm
+    from app.chain import market
+    w = fm.World(100, start=65).build(7)
+    a, b = w.chain(), w.chain()
+    for ch in (a, b):
+        if with_feed:
+            feed = market.CHAINS["ethereum"]["chainlink_eth_usd"]
+            ch.evm[(feed, market.SEL["feed_decimals"])] = "0x" + format(8, "064x")
+            ch.evm[(feed, market.SEL["latestRoundData"])] = "0x" + "".join(format(x, "064x") for x in (1, feed_price * 10 ** 8, 0, 0, 1))
+    if verifier_tamper:
+        real = b.receipt
+        def receipt(h):
+            r = real(h); r["from"] = fm.addr(0xdead); return r
+        b.receipt = receipt
+    sa, sb = Server(a), Server(b)
+    cfg = {"chains": {"ethereum": {"chain_id": 1, "providers": [{"name": "a", "url": sa.url}, {"name": "b", "url": sb.url}]}}}
+    (tmp_path / "p.json").write_text(json.dumps(cfg))
+    (tmp_path / "selection.json").write_text(json.dumps({"ethereum": {"ranked": ["a", "b"], "primary": "a", "verifier": "b",
+                                                                       "ranges": {"a": 2000, "b": 2000}}}))
+    return w, (sa, sb)
+
+
+def _run_market(tmp_path, dsn):
+    return run("market_run.py", {"PROVIDERS_FILE": str(tmp_path / "p.json"), "DATABASE_URL": dsn, "MARKET_DISCOVERY_BLOCKS": "40",
+                                 "MARKET_WATCH_BLOCKS": "60", "MARKET_TOP_K": "4", "MARKET_VERIFY_SAMPLE": "25"}, tmp_path)
+
+
+def test_market_run_end_to_end_with_independent_checks(tmp_path):
+    w, servers = _market_setup(tmp_path)
+    name, dsn = make_db("mkt")
+    try:
+        r = _run_market(tmp_path, dsn)
+        assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-1500:]
+        rep = json.loads((tmp_path / "market_run.json").read_text())
+        assert rep["chainlink"]["status"] == "pass" and rep["second_provider"]["passed"] is True
+        assert rep["receipts"]["inconsistent_with_getlogs"] == 0 and rep["trades"]["confirmed"] > 0 and rep["trades"]["mismatch"] > 0
+        assert rep["attribution"]["share_with_a_trade"] > 0.3 and rep["wallets"]["wallets_with_confirmed_trade"] > 0
+        assert rep["cross_pool_prices"]["buckets_compared"] > 0 and rep["cross_pool_prices"]["max_deviation_pct"] < 1.0
+        assert rep["discovery"]["rejected_unverified"] >= 1 and rep["integrity"]["steps_failed"] == []
+        text = (tmp_path / "market_run.md").read_text() + (tmp_path / "market_run.json").read_text()
+        assert "SECRET" not in text and "127.0.0.1" not in text                  # endpoint URLs / hosts never reach the report
+    finally:
+        drop_db(name)
+        for s in servers:
+            s.close()
+
+
+def test_market_run_flags_chainlink_disagreement_and_tampered_second_provider(tmp_path):
+    w, servers = _market_setup(tmp_path, feed_price=3600)
+    name, dsn = make_db("mkt")
+    try:
+        r = _run_market(tmp_path, dsn)
+        assert r.returncode == 1
+        assert json.loads((tmp_path / "market_run.json").read_text())["chainlink"]["status"] == "fail"
+    finally:
+        drop_db(name)
+        for s in servers:
+            s.close()
+    w, servers = _market_setup(tmp_path, verifier_tamper=True)
+    name, dsn = make_db("mkt")
+    try:
+        r = _run_market(tmp_path, dsn)
+        rep = json.loads((tmp_path / "market_run.json").read_text())
+        assert r.returncode == 1 and rep["second_provider"]["passed"] is False and rep["second_provider"]["receipt_mismatches"]
+    finally:
+        drop_db(name)
+        for s in servers:
+            s.close()
+
+
+def test_market_run_reports_unavailable_chainlink_honestly_not_as_pass(tmp_path):
+    w, servers = _market_setup(tmp_path, with_feed=False)
+    name, dsn = make_db("mkt")
+    try:
+        r = _run_market(tmp_path, dsn)
+        rep = json.loads((tmp_path / "market_run.json").read_text())
+        assert rep["chainlink"]["status"].startswith("unavailable") and rep["headline"]["chainlink check"].startswith("unavailable")
+    finally:
+        drop_db(name)
+        for s in servers:
+            s.close()

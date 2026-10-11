@@ -151,6 +151,13 @@ class FakeChain:
                      "removed": False} for l in res]
         if method == "eth_call":
             return self.call(params[0]["to"], params[0]["data"])
+        if method == "eth_getTransactionByHash":
+            try:
+                r = self.receipt(params[0])
+            except RpcError:
+                return None
+            return {"hash": r["tx_hash"], "from": r["from"], "to": None, "value": "0x0", "blockNumber": hex(r["block_number"]),
+                    "blockHash": r["block_hash"], "transactionIndex": "0x0"}
         if method == "eth_getTransactionReceipt":
             try:
                 r = self.receipt(params[0])
