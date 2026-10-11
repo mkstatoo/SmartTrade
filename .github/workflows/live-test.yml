@@ -23,7 +23,7 @@ jobs:
       DATABASE_URL: postgresql://smartcopy:smartcopy_test@localhost:5432/smartcopy_live
       RPC_ETHEREUM_1: ${{ secrets.RPC_ETHEREUM_1 }}
       RPC_BASE_1: ${{ secrets.RPC_BASE_1 }}
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -41,9 +41,10 @@ jobs:
       - name: Wallet attribution on real Ethereum data
         id: market
         continue-on-error: true
+        timeout-minutes: 70
         env:
           MARKET_DISCOVERY_BLOCKS: ${{ vars.MARKET_DISCOVERY_BLOCKS || '300' }}
-          MARKET_WATCH_BLOCKS: ${{ vars.MARKET_WATCH_BLOCKS || '7200' }}
+          MARKET_WATCH_BLOCKS: ${{ vars.MARKET_WATCH_BLOCKS || '3600' }}
         run: python scripts/market_run.py
       - name: Publish reports to branch live-test-reports
         if: always()

@@ -53,15 +53,20 @@ def q(dsn, sql, *a):
         return c.execute(sql, a).fetchall()
 
 
+FLUSH = []          # set by main(): writes the (partial) report, so a step that is killed by a time limit still leaves its predecessors on record
+
+
 def step(rep, name, fn):
     t0 = time.time()
     try:
         out = fn()
         rep["steps"][name] = {"ok": True, "seconds": round(time.time() - t0, 1)}
-        return out
     except Exception as exc:  # noqa: BLE001
         rep["steps"][name] = {"ok": False, "seconds": round(time.time() - t0, 1), "error": f"{type(exc).__name__}: {str(exc)[:200]}"}
-        return None
+        out = None
+    for f in FLUSH:
+        f()
+    return out
 
 
 # ------------------------------------------------------------------------------------------------ independent checks
@@ -183,15 +188,12 @@ def state_check(rpc, dsn, chain):
 
 def to_summary(dsn, chain):
     """Who do the transactions go to? Separates routers (seen in confirmed trades too) from private bot contracts."""
-    def top(where):
-        return [{"to": r["to_addr"], "txs": r["n"]} for r in q(
-            dsn, "SELECT x.to_addr, count(*) n FROM chain_txs x JOIN chain_blocks b ON b.chain=x.chain AND b.block_hash=x.block_hash AND b.canonical "
-                 f"WHERE x.chain=%s AND {where} GROUP BY x.to_addr ORDER BY count(*) DESC LIMIT 8", chain)]
-    with_trade = "x.tx_hash IN (SELECT tx_hash FROM chain_trades_canonical WHERE chain=x.chain)"
-    skipped = ("x.tx_hash IN (SELECT tx_hash FROM chain_trade_skips WHERE chain=x.chain AND reason='no_sender_transfer') "
-               "AND x.tx_hash NOT IN (SELECT tx_hash FROM chain_trades_canonical WHERE chain=x.chain)")
-    n_skipped = q(dsn, f"SELECT count(*) n FROM chain_txs x WHERE x.chain=%s AND {skipped}", chain)[0]["n"]
-    return {"top_to_for_txs_with_a_trade": top(with_trade), "top_to_for_unattributed_txs": top(skipped), "unattributed_txs": n_skipped,
+    txs = q(dsn, "SELECT x.tx_hash, x.to_addr FROM chain_txs x JOIN chain_blocks b ON b.chain=x.chain AND b.block_hash=x.block_hash AND b.canonical "
+                 "WHERE x.chain=%s", chain)
+    traded = {r["tx_hash"] for r in q(dsn, "SELECT DISTINCT tx_hash FROM chain_trades_canonical WHERE chain=%s", chain)}
+    skipped = {r["tx_hash"] for r in q(dsn, "SELECT DISTINCT tx_hash FROM chain_trade_skips WHERE chain=%s AND reason='no_sender_transfer'", chain)} - traded
+    top = lambda keep: [{"to": a, "txs": n} for a, n in Counter(r["to_addr"] for r in txs if r["tx_hash"] in keep).most_common(8)]  # noqa: E731
+    return {"top_to_for_txs_with_a_trade": top(traded), "top_to_for_unattributed_txs": top(skipped), "unattributed_txs": len(skipped),
             "note": "addresses are not labelled here; a 'to' that is frequent among attributed trades is a public router, one that appears only among "
                     "unattributed txs is typically a private bot contract"}
 
@@ -247,11 +249,19 @@ def main():
     rep = {"at_utc": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), "chain": CHAIN, "steps": {}, "headline": {},
            "params": {"discovery_blocks": DISC, "watch_blocks": WATCH, "top_k": TOP_K, "receipt_limit": RECEIPT_LIMIT, "confirmations": CONF}}
 
-    def finish(code):
+    def flush():
+        rep["partial"] = True
         (out / "market_run.json").write_text(json.dumps(rep, indent=1, default=str))
+        (out / "market_run.md").write_text(md(rep))
+
+    def finish(code):
+        rep.pop("partial", None)
+        flush_final = (out / "market_run.json")
+        flush_final.write_text(json.dumps(rep, indent=1, default=str))
         (out / "market_run.md").write_text(md(rep))
         print(json.dumps(rep["headline"], default=str), flush=True)
         return code
+    FLUSH.append(flush)
 
     if not sel or not sel.get("primary"):
         rep["skipped"] = "no usable primary provider for ethereum in selection.json"
