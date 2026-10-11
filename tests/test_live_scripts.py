@@ -74,3 +74,22 @@ def test_live_verify_detects_a_verifier_that_disagrees(tmp_path):
         assert rep["checks"]["logs_identical_to_independent_provider"] is False and rep["log_counts"]["only_stored"] > 0
     finally:
         drop_db(name); sa.close(); sb.close()
+
+
+def test_provider_limited_to_one_block_per_query_still_works_and_agrees(tmp_path):
+    narrow, wide = FakeChain(700, salt="x", logs_at=logs()), FakeChain(700, salt="x", logs_at=logs())
+    narrow.max_range = 1                                          # like public gateways that allow one block per query
+    sn, sw = Server(narrow), Server(wide)
+    cfg = {"chains": {"ethereum": {"chain_id": 1, "providers": [{"name": "narrow", "url": sn.url}, {"name": "wide", "url": sw.url}]}}}
+    (tmp_path / "p.json").write_text(json.dumps(cfg))
+    name, dsn = make_db("live")
+    try:
+        env = {"PROVIDERS_FILE": str(tmp_path / "p.json"), "DATABASE_URL": dsn}
+        assert run("provider_probe.py", env, tmp_path).returncode == 0
+        sel = json.loads((tmp_path / "selection.json").read_text())["ethereum"]
+        assert sel["primary"] == "wide" and sel["verifier"] == "narrow" and sel["ranges"]["narrow"] == 1
+        r = run("live_verify.py", env, tmp_path)
+        assert r.returncode == 0, r.stdout + r.stderr
+        assert json.loads((tmp_path / "live_verify.json").read_text())["reports"][0]["passed"]
+    finally:
+        drop_db(name); sn.close(); sw.close()

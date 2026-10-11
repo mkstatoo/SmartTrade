@@ -41,7 +41,9 @@ def check_chain(chain, sel, cfg, dsn):
     ver = JsonRpcSource(url_for(cfg, chain, sel["verifier"]), timeout=30, retries=3, backoff=1.0)
     start = prim.head() - START_BACK
     t0 = time.time()
-    r1 = ingest(prim, dsn, chain, start_block=start, confirmations=CONF, batch=50, max_blocks=NBLOCKS)
+    prim_range, ver_range = sel.get("ranges", {}).get(sel["primary"], 1), sel.get("ranges", {}).get(sel["verifier"], 1)
+    rep["ranges"] = {"primary": prim_range, "verifier": ver_range}
+    r1 = ingest(prim, dsn, chain, start_block=start, confirmations=CONF, batch=max(1, min(50, prim_range)), max_blocks=NBLOCKS)
     rep["ingest_run1"] = {k: getattr(r1, k) for k in ("blocks", "logs", "decoded", "decode_errors", "reorgs", "next_block", "head")} | {"seconds": round(time.time() - t0, 1), "notes": r1.notes[:5]}
     end = r1.next_block - 1
     rep["range"] = [start, end]
@@ -57,14 +59,15 @@ def check_chain(chain, sel, cfg, dsn):
     bad_hash = [n for n in blocks if ver.block(n)["hash"] != blocks[n]["block_hash"]]
     ok["block_hashes_match_independent_provider"] = not bad_hash
     ver_logs = []
-    for lo in range(start, end + 1, 50):
-        ver_logs += ver.logs(lo, min(lo + 49, end), WATCHED_TOPICS)
+    step = max(1, min(50, ver_range))
+    for lo in range(start, end + 1, step):
+        ver_logs += ver.logs(lo, min(lo + step - 1, end), WATCHED_TOPICS)
     mine = Counter((l["block_number"], l["tx_hash"], l["log_index"]) for l in logs)
     theirs = Counter((l["block_number"], l["tx_hash"], l["log_index"]) for l in ver_logs)
     ok["logs_identical_to_independent_provider"] = mine == theirs
     rep["log_counts"] = {"stored": sum(mine.values()), "independent": sum(theirs.values()),
                          "only_stored": len(mine - theirs), "only_independent": len(theirs - mine)}
-    r2 = ingest(prim, dsn, chain, confirmations=CONF, batch=50, max_blocks=20)          # resume from the cursor
+    r2 = ingest(prim, dsn, chain, confirmations=CONF, batch=max(1, min(50, prim_range)), max_blocks=20)          # resume from the cursor
     with psycopg.connect(dsn, row_factory=dict_row) as c:
         dup = c.execute("SELECT count(*) AS n FROM (SELECT 1 FROM chain_logs WHERE chain=%s GROUP BY block_hash, tx_hash, log_index HAVING count(*)>1) x", (chain,)).fetchone()["n"]
         noncanon = c.execute("SELECT count(*) AS n FROM chain_blocks WHERE chain=%s AND NOT canonical", (chain,)).fetchone()["n"]

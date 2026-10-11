@@ -89,37 +89,51 @@ def probe(chain, chain_id, name, url):
     return r, src
 
 
+def logs_chunked(src, lo, hi, step):
+    out = []
+    for a in range(lo, hi + 1, max(1, step)):
+        out += src.logs(a, min(a + step - 1, hi), WATCHED_TOPICS)
+    return out
+
+
 def agreement(chain, results, srcs):
+    """All usable providers must return the same block hashes and the same set of (block, tx, log index) for one window.
+    The window is as wide as the most restrictive provider allows (never more than 20 blocks); each provider is asked in
+    chunks it accepts."""
     ok = [r for r in results if r["chain"] == chain and r["ok"]]
     if len(ok) < 2:
         return
+    span = max(1, min(20, min(r["max_log_range_blocks"] for r in ok)))
+    span = max(span, 3) if all(r["max_log_range_blocks"] >= 1 for r in ok) else span
     ref = min(r["head"] for r in ok) - 100
-    span = 20
     facts = {}
     for r in ok:
         s = srcs[(chain, r["provider"])]
-        hashes, cnt = None, None
         try:
-            hashes = [s.block(ref + i)["hash"] for i in range(span)]
-            cnt = len(s.logs(ref, ref + span - 1, WATCHED_TOPICS))
+            hashes = tuple(s.block(ref + i)["hash"] for i in range(span))
+            lg = logs_chunked(s, ref, ref + span - 1, r["max_log_range_blocks"])
+            facts[r["provider"]] = (hashes, frozenset((l["block_number"], l["tx_hash"], l["log_index"]) for l in lg))
         except RpcError as exc:
             r["errors"].append(f"agreement fetch: {exc}")
-        facts[r["provider"]] = (tuple(hashes) if hashes else None, cnt)
+            facts[r["provider"]] = None
     from collections import Counter
-    votes = Counter(v for v in facts.values() if v[0] is not None)
+    votes = Counter(v for v in facts.values() if v is not None)
     if not votes:
         return
-    majority, n = votes.most_common(1)[0]
+    majority = votes.most_common(1)[0][0]
     for r in ok:
-        r["agrees_with_majority"] = facts[r["provider"]] == majority
+        f = facts[r["provider"]]
         r["agreement_block_window"] = [ref, ref + span - 1]
-        r["agreement_log_count"] = facts[r["provider"]][1]
+        r["agrees_with_majority"] = None if f is None else f == majority
+        r["agreement_log_count"] = None if f is None else len(f[1])
     return
 
 
 def score(r):
     if not r["ok"] or r.get("agrees_with_majority") is False:
         return -1
+    if r.get("agrees_with_majority") is None and "agreement_block_window" in r:
+        return -1                                          # could not be checked against the others: not trusted
     return (r["max_log_range_blocks"], -(r.get("burst_30_errors") or 0), -(r.get("latency_p95_ms") or 10**9))
 
 
@@ -138,7 +152,8 @@ def main():
         good = sorted([r for r in results if r["chain"] == chain and score(r) != -1], key=score, reverse=True)
         selection[chain] = {"ranked": [r["provider"] for r in good],
                             "primary": good[0]["provider"] if good else None,
-                            "verifier": good[1]["provider"] if len(good) > 1 else None}
+                            "verifier": good[1]["provider"] if len(good) > 1 else None,
+                            "ranges": {r["provider"]: r["max_log_range_blocks"] for r in good}}
     OUT.mkdir(exist_ok=True)
     (OUT / "probe.json").write_text(json.dumps({"at_utc": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), "results": results}, indent=1))
     (OUT / "selection.json").write_text(json.dumps(selection, indent=1))
