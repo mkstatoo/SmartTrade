@@ -96,12 +96,14 @@ def test_provider_limited_to_one_block_per_query_still_works_and_agrees(tmp_path
 
 
 # ---------------------------------------------------------------------------------------------- market_run.py
-def _market_setup(tmp_path, feed_price=3025, with_feed=True, verifier_tamper=False):
+def _market_setup(tmp_path, feed_price=3025, with_feed=True, verifier_tamper=False, balances="true"):
     import fake_market as fm
     from app.chain import market
     w = fm.World(100, start=65).build(7)
     a, b = w.chain(), w.chain()
     for ch in (a, b):
+        if balances != "none":
+            ch.dyn = w.balance_dyn(ch, frozen=balances == "frozen")
         if with_feed:
             feed = market.CHAINS["ethereum"]["chainlink_eth_usd"]
             ch.evm[(feed, market.SEL["feed_decimals"])] = "0x" + format(8, "064x")
@@ -132,6 +134,8 @@ def test_market_run_end_to_end_with_independent_checks(tmp_path):
         assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-1500:]
         rep = json.loads((tmp_path / "market_run.json").read_text())
         assert rep["chainlink"]["status"] == "pass" and rep["second_provider"]["passed"] is True
+        assert rep["state_check"]["status"] == "pass" and rep["state_check"]["checked"] >= 10 and rep["state_check"]["match_rate"] >= 0.9
+        assert rep["tx_targets"]["top_to_for_txs_with_a_trade"] and rep["tx_targets"]["unattributed_txs"] > 0
         assert rep["receipts"]["inconsistent_with_getlogs"] == 0 and rep["trades"]["confirmed"] > 0 and rep["trades"]["mismatch"] > 0
         assert rep["attribution"]["share_with_a_trade"] > 0.3 and rep["wallets"]["wallets_with_confirmed_trade"] > 0
         assert rep["cross_pool_prices"]["buckets_compared"] > 0 and rep["cross_pool_prices"]["max_deviation_pct"] < 1.0
@@ -174,6 +178,20 @@ def test_market_run_reports_unavailable_chainlink_honestly_not_as_pass(tmp_path)
         r = _run_market(tmp_path, dsn)
         rep = json.loads((tmp_path / "market_run.json").read_text())
         assert rep["chainlink"]["status"].startswith("unavailable") and rep["headline"]["chainlink check"].startswith("unavailable")
+    finally:
+        drop_db(name)
+        for s in servers:
+            s.close()
+
+
+def test_market_run_flags_a_node_whose_state_contradicts_the_logs(tmp_path):
+    w, servers = _market_setup(tmp_path, balances="frozen")
+    name, dsn = make_db("mkt")
+    try:
+        r = _run_market(tmp_path, dsn)
+        rep = json.loads((tmp_path / "market_run.json").read_text())
+        assert r.returncode == 1 and rep["state_check"]["status"] == "fail" and rep["state_check"]["mismatches"]
+        assert rep["integrity"]["state_check_failed"] is True
     finally:
         drop_db(name)
         for s in servers:

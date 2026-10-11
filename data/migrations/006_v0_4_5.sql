@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS chain_txs (
     block_hash TEXT NOT NULL,
     block_number BIGINT NOT NULL CHECK (block_number >= 0),
     from_addr TEXT NOT NULL CHECK (from_addr ~ '^0x[0-9a-f]{40}$'),
+    to_addr TEXT CHECK (to_addr IS NULL OR to_addr ~ '^0x[0-9a-f]{40}$'),
     status INTEGER NOT NULL CHECK (status IN (0,1)),
     gas_used NUMERIC NOT NULL CHECK (gas_used >= 0),
     effective_gas_price NUMERIC NOT NULL CHECK (effective_gas_price >= 0),

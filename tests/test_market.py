@@ -17,7 +17,8 @@ def keccak4(sig: str) -> str:
 def test_selectors_match_keccak_of_signatures():
     sigs = {"factory": "factory()", "token0": "token0()", "token1": "token1()", "fee": "fee()",
             "getPool": "getPool(address,address,uint24)", "getPair": "getPair(address,address)",
-            "decimals": "decimals()", "symbol": "symbol()", "latestRoundData": "latestRoundData()"}
+            "decimals": "decimals()", "symbol": "symbol()", "latestRoundData": "latestRoundData()",
+            "balanceOf": "balanceOf(address)"}
     for k, s in sigs.items():
         assert m.SEL[k] == keccak4(s), k
 

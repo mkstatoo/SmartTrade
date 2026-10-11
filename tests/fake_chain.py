@@ -47,6 +47,7 @@ class FakeChain:
         self.blocks = {}                 # number -> dict(hash,parent,ts,logs)
         self.t0, self.calls, self.hook = t0, [], None
         self.max_range = None
+        self.dyn = None                  # optional callable(to, data, block) -> result or None (state-dependent eth_call)
         self.evm = {}                    # (to, data) -> eth_call result; absent = revert
         self.tx_meta = {}                # tx_hash -> {from, status, gas_used, egp}
         parent = "0x" + "00" * 32
@@ -112,6 +113,10 @@ class FakeChain:
 
     def call(self, to, data, block=None):
         self._tick("call", to, data)
+        if self.dyn is not None:
+            r = self.dyn(to, data, block)
+            if r is not None:
+                return r
         if (to, data) not in self.evm:
             raise RpcError("execution reverted", 3)
         return self.evm[(to, data)]
@@ -125,7 +130,7 @@ class FakeChain:
             logs = [{"block_number": n, "block_hash": b["hash"], "tx_hash": tx_hash, "log_index": i, "address": l["address"],
                      "topics": list(l["topics"]), "data": l["data"]} for i, l in enumerate(b["logs"]) if l.get("tx") == tx_hash]
             if logs:
-                return {"tx_hash": tx_hash, "block_number": n, "block_hash": b["hash"], "from": meta["from"], "status": meta["status"],
+                return {"tx_hash": tx_hash, "block_number": n, "block_hash": b["hash"], "from": meta["from"], "to": meta.get("to"), "status": meta["status"],
                         "gas_used": meta["gas_used"], "effective_gas_price": meta["egp"], "logs": logs}
         raise RpcError("receipt not available")
 
@@ -150,7 +155,8 @@ class FakeChain:
                      "logIndex": hex(l["log_index"]), "address": l["address"], "topics": l["topics"], "data": l["data"],
                      "removed": False} for l in res]
         if method == "eth_call":
-            return self.call(params[0]["to"], params[0]["data"])
+            blk = params[1]
+            return self.call(params[0]["to"], params[0]["data"], None if blk == "latest" else int(blk, 16))
         if method == "eth_getTransactionByHash":
             try:
                 r = self.receipt(params[0])
@@ -163,7 +169,7 @@ class FakeChain:
                 r = self.receipt(params[0])
             except RpcError:
                 return None
-            return {"transactionHash": r["tx_hash"], "blockNumber": hex(r["block_number"]), "blockHash": r["block_hash"], "from": r["from"],
+            return {"transactionHash": r["tx_hash"], "blockNumber": hex(r["block_number"]), "blockHash": r["block_hash"], "from": r["from"], "to": r["to"],
                     "status": hex(r["status"]), "gasUsed": hex(r["gas_used"]), "effectiveGasPrice": hex(r["effective_gas_price"]),
                     "logs": [{"blockNumber": hex(l["block_number"]), "blockHash": l["block_hash"], "transactionHash": l["tx_hash"],
                               "logIndex": hex(l["log_index"]), "address": l["address"], "topics": l["topics"], "data": l["data"],

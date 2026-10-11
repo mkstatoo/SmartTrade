@@ -156,8 +156,11 @@ class JsonRpcSource:
                 raise RpcError("node returned a different receipt than requested")
             if not (HEX32.match(r["blockHash"]) and HEX20.match(r["from"])):
                 raise ValueError
+            to = r.get("to")
+            if to is not None and not HEX20.match(to):
+                raise ValueError
             return {"tx_hash": tx_hash.lower(), "block_number": _hex_int(r["blockNumber"], "blockNumber"),
-                    "block_hash": r["blockHash"].lower(), "from": r["from"].lower(),
+                    "block_hash": r["blockHash"].lower(), "from": r["from"].lower(), "to": to.lower() if to else None,
                     "status": _hex_int(r.get("status", "0x1"), "status"), "gas_used": _hex_int(r["gasUsed"], "gasUsed"),
                     "effective_gas_price": _hex_int(r.get("effectiveGasPrice", "0x0"), "effectiveGasPrice"),
                     "logs": [_parse_log(l) for l in r["logs"]]}

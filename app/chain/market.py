@@ -16,7 +16,7 @@ getcontext().prec = 50
 
 SEL = {"factory": "0xc45a0155", "token0": "0x0dfe1681", "token1": "0xd21220a7", "fee": "0xddca3f43",
        "getPool": "0x1698ee82", "getPair": "0xe6a43905", "decimals": "0x313ce567", "symbol": "0x95d89b41",
-       "latestRoundData": "0xfeaf968c", "feed_decimals": "0x313ce567"}
+       "latestRoundData": "0xfeaf968c", "feed_decimals": "0x313ce567", "balanceOf": "0x70a08231"}
 
 CHAINS = {
     "ethereum": {

@@ -72,10 +72,10 @@ class World:
         self.truth = {"trades": [], "skips": []}
         self.k = 0
 
-    def _tx(self, n, frm, status=1, gas=150_000, egp=20 * 10 ** 9):
+    def _tx(self, n, frm, status=1, gas=150_000, egp=20 * 10 ** 9, to=None):
         self.k += 1
         h = _h("wtx", n, self.k)
-        self.meta[h] = {"from": frm, "status": status, "gas_used": gas, "egp": egp}
+        self.meta[h] = {"from": frm, "to": to, "status": status, "gas_used": gas, "egp": egp}
         return h
 
     def _swap(self, n, tx, pool, base_or_none, trader_pays: dict, trader_gets: dict, sender, recipient):
@@ -106,7 +106,7 @@ class World:
     def trade(self, n, pool, base, quote, buys, wallet, rng, style="direct", frm=None, fee_bps=0, beneficiary=None):
         qty = Decimal(rng.randint(10, 500)) / Decimal(10) if base == TOKA else Decimal(rng.randint(100, 5000)) / Decimal(10)
         braw, qraw, tq, tusd = self._amounts(n, base, quote, qty)
-        tx = self._tx(n, frm or wallet)
+        tx = self._tx(n, frm or wallet, to=ROUTER if style != "direct" else None)
         who = beneficiary or wallet
         pays, gets = ({quote: qraw}, {base: braw}) if buys else ({base: braw}, {quote: qraw})
         self._swap(n, tx, pool, base, pays, gets, ROUTER if style != "direct" else wallet, ROUTER if style != "direct" else who)
@@ -211,6 +211,28 @@ class World:
             if lg.get("tx") == tx and lg["address"] == base:
                 return "buy" if lg["topics"][2] == "0x" + "0" * 24 + wallet[2:] else "sell"
         raise AssertionError
+
+    def balance_dyn(self, ch, frozen=False):
+        """balanceOf(address) from the world's own Transfer logs (state at the END of block b). `frozen` returns a constant: a node that lies."""
+        base = 10 ** 30
+
+        def dyn(to, data, block):
+            if not data.startswith(m.SEL["balanceOf"]):
+                return None
+            who = "0x" + data[-40:]
+            if frozen:
+                return "0x" + format(base, "064x")
+            top = ch.tip if block is None else block
+            bal = base
+            for n in range(0, min(top, self.blocks - 1) + 1):
+                for lg in self.logs[n]:
+                    if lg["address"] != to or lg["topics"][0] != "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef":
+                        continue
+                    amt = int(lg["data"], 16)
+                    bal += amt if lg["topics"][2][-40:] == who[2:] else 0
+                    bal -= amt if lg["topics"][1][-40:] == who[2:] else 0
+            return "0x" + format(bal, "064x")
+        return dyn
 
     def chain(self, salt="a", tail=40) -> FakeChain:
         """FakeChain with `tail` empty blocks after the world (confirmations)."""

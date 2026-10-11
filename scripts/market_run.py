@@ -30,10 +30,11 @@ from app.migrate import migrate  # noqa: E402
 CHAIN = "ethereum"
 LABEL, DLABEL = "ethereum-mkt", "ethereum-mkt-disc"
 CONF = 12
-DISC = int(os.getenv("MARKET_DISCOVERY_BLOCKS", "200"))
-WATCH = int(os.getenv("MARKET_WATCH_BLOCKS", "300"))
+DISC = int(os.getenv("MARKET_DISCOVERY_BLOCKS", "300"))
+WATCH = int(os.getenv("MARKET_WATCH_BLOCKS", "1500"))
 TOP_K = int(os.getenv("MARKET_TOP_K", "30"))
-RECEIPT_LIMIT = int(os.getenv("MARKET_RECEIPT_LIMIT", "3000"))
+RECEIPT_LIMIT = int(os.getenv("MARKET_RECEIPT_LIMIT", "20000"))
+CANDIDATES = int(os.getenv("MARKET_CANDIDATES", "300"))
 SAMPLE = int(os.getenv("MARKET_VERIFY_SAMPLE", "50"))
 WORKERS = int(os.getenv("MARKET_WORKERS", "4"))
 
@@ -127,26 +128,72 @@ def verify_with_second_provider(ver, dsn, chain, tokens):
             "passed": not bad and not bad_from and (len(rows) - errors) > 0 and (len(trades) - from_err) > 0}
 
 
-def cross_pool_prices(dsn, chain):
-    """Same token, same 10-block bucket, two different pools: their median execution prices should agree within fees/arbitrage."""
+def cross_pool_prices(swaps, pools, val):
+    """Same token, same 20-block bucket, two different pools: median execution prices of ALL priced swaps (attributed or not) should
+    agree up to fee tiers and arbitrage lag. An independent check of the pricing path (quote conversion, decimals, direction)."""
     per = defaultdict(list)
-    for r in q(dsn, "SELECT token, block_number, evidence FROM chain_trades_canonical WHERE chain=%s", chain):
-        for s in r["evidence"]["swaps"]:
-            per[(r["token"], r["block_number"] // 10, s["pool"])].append(Decimal(s["price_usd"]))
+    for sw in swaps:
+        r = val.priced_swap(pools[sw["pool"]], sw["d0"], sw["d1"], sw["block"], sw["log_index"])
+        if isinstance(r, dict):
+            per[(r["token"], sw["block"] // 20, sw["pool"])].append(r["price_usd"])
     by_tb = defaultdict(dict)
     for (tok, bucket, pool), px in per.items():
         if len(px) >= 2:
             by_tb[(tok, bucket)][pool] = statistics.median(px)
     devs = []
-    for pools in by_tb.values():
-        if len(pools) >= 2:
-            v = sorted(pools.values())
+    for pl in by_tb.values():
+        if len(pl) >= 2:
+            v = sorted(pl.values())
             devs.append(float(abs(v[-1] - v[0]) / ((v[-1] + v[0]) / 2) * 100))
     if not devs:
-        return {"buckets_compared": 0, "note": "no token had >=2 pools with >=2 swaps in the same 10-block bucket"}
+        return {"buckets_compared": 0, "note": "no token had >=2 pools with >=2 priced swaps in the same 20-block bucket"}
     devs.sort()
-    return {"buckets_compared": len(devs), "median_deviation_pct": statistics.median(devs), "p90_deviation_pct": devs[int(0.9 * (len(devs) - 1))],
-            "max_deviation_pct": devs[-1]}
+    return {"buckets_compared": len(devs), "tokens_compared": len({k[0] for k in by_tb if len(by_tb[k]) >= 2}),
+            "median_deviation_pct": statistics.median(devs), "p90_deviation_pct": devs[int(0.9 * (len(devs) - 1))], "max_deviation_pct": devs[-1]}
+
+
+def state_check(rpc, dsn, chain):
+    """Independent of the logs: for recent confirmed trades compare balanceOf(wallet) after minus before the block with the wallet's
+    Transfer delta used for attribution. A node only serves state for recent blocks; if it does not, the result is 'unavailable'."""
+    head = rpc.head()
+    rows = q(dsn, "SELECT wallet, token, block_number, tx_hash, evidence FROM chain_trades_canonical WHERE chain=%s AND confidence='confirmed' "
+                  "AND block_number >= %s ORDER BY md5(tx_hash || token) LIMIT 60", chain, head - 100)
+    out = {"candidates": len(rows), "checked": 0, "exact_match": 0, "unavailable": 0, "mismatches": []}
+    for r in rows:
+        data = market.calldata(market.SEL["balanceOf"], r["wallet"])
+        b1 = market._try(rpc, r["token"], data, r["block_number"])
+        b0 = market._try(rpc, r["token"], data, r["block_number"] - 1)
+        if b1 is None or b0 is None:
+            out["unavailable"] += 1
+            continue
+        delta, expect = market.dec_uint(b1) - market.dec_uint(b0), int(r["evidence"]["sender_delta_raw"])
+        out["checked"] += 1
+        if delta == expect:
+            out["exact_match"] += 1
+        elif len(out["mismatches"]) < 10:
+            out["mismatches"].append({"tx": r["tx_hash"][:14], "state_delta": str(delta), "log_delta": str(expect)})
+    if out["checked"] < 10:
+        out["status"] = "unavailable: fewer than 10 trades could be checked against node state"
+    else:
+        out["match_rate"] = round(out["exact_match"] / out["checked"], 4)
+        out["criterion"] = "pass if >=10 checked and >=90% equal (other transactions of the same wallet in the same block legitimately differ)"
+        out["status"] = "pass" if out["match_rate"] >= 0.9 else "fail"
+    return out
+
+
+def to_summary(dsn, chain):
+    """Who do the transactions go to? Separates routers (seen in confirmed trades too) from private bot contracts."""
+    def top(where):
+        return [{"to": r["to_addr"], "txs": r["n"]} for r in q(
+            dsn, "SELECT x.to_addr, count(*) n FROM chain_txs x JOIN chain_blocks b ON b.chain=x.chain AND b.block_hash=x.block_hash AND b.canonical "
+                 f"WHERE x.chain=%s AND {where} GROUP BY x.to_addr ORDER BY count(*) DESC LIMIT 8", chain)]
+    with_trade = "x.tx_hash IN (SELECT tx_hash FROM chain_trades_canonical WHERE chain=x.chain)"
+    skipped = ("x.tx_hash IN (SELECT tx_hash FROM chain_trade_skips WHERE chain=x.chain AND reason='no_sender_transfer') "
+               "AND x.tx_hash NOT IN (SELECT tx_hash FROM chain_trades_canonical WHERE chain=x.chain)")
+    n_skipped = q(dsn, f"SELECT count(*) n FROM chain_txs x WHERE x.chain=%s AND {skipped}", chain)[0]["n"]
+    return {"top_to_for_txs_with_a_trade": top(with_trade), "top_to_for_unattributed_txs": top(skipped), "unattributed_txs": n_skipped,
+            "note": "addresses are not labelled here; a 'to' that is frequent among attributed trades is a public router, one that appears only among "
+                    "unattributed txs is typically a private bot contract"}
 
 
 def wallet_summary(dsn, chain):
@@ -208,7 +255,7 @@ def main():
     if d1 is None:
         return finish(1)
     rep["discovery_ingest"] = {k: getattr(d1, k) for k in ("blocks", "logs", "decoded", "decode_errors", "reorgs", "next_block")} | {"notes": d1.notes[:5]}
-    disc = step(rep, "discover_pools", lambda: pipeline.discover_pools(dsn, prim, LABEL, cfg, discovery_chain=DLABEL, top_k=TOP_K))
+    disc = step(rep, "discover_pools", lambda: pipeline.discover_pools(dsn, prim, LABEL, cfg, discovery_chain=DLABEL, top_k=TOP_K, candidates=CANDIDATES))
     if disc is None:
         return finish(1)
     rep["discovery"] = disc | {"rejected_unverified": len(disc["rejected_unverified"]), "constants": {a[:10]: v["ok"] for a, v in disc["constants"].items()}}
@@ -225,8 +272,10 @@ def main():
     dec = {r["address"]: r["decimals"] for r in conn.execute("SELECT address, decimals FROM chain_tokens WHERE chain=%s", (LABEL,))}
     for t, (_, dd) in cfg["expected"].items():
         dec.setdefault(t, dd)
-    series, dropped = pipeline.robust_eth_series(pipeline.eth_points(cfg, dec, pool_objs, [s for s in pipeline.load_swaps(conn, LABEL) if s["pool"] in pool_objs]))
+    swaps_all = [s for s in pipeline.load_swaps(conn, LABEL) if s["pool"] in pool_objs]
+    series, dropped = pipeline.robust_eth_series(pipeline.eth_points(cfg, dec, pool_objs, swaps_all))
     conn.close()
+    val = market.Valuation(cfg, dec, series)
     rep["eth_series"] = {"points": len(series.pts), "outliers_dropped": dropped,
                          "min": float(min(p[1] for p in series.pts)) if series.pts else None, "max": float(max(p[1] for p in series.pts)) if series.pts else None}
     rep["chainlink"] = step(rep, "chainlink_check", lambda: chainlink_check(prim, cfg, series, prim.head())) or {"status": "error"}
@@ -254,7 +303,9 @@ def main():
         rep["second_provider"] = step(rep, "second_provider_check", lambda: verify_with_second_provider(ver, dsn, LABEL, tokens)) or {"passed": False}
     else:
         rep["second_provider"] = {"passed": None, "note": "no verifier provider available"}
-    rep["cross_pool_prices"] = step(rep, "cross_pool_prices", lambda: cross_pool_prices(dsn, LABEL))
+    rep["cross_pool_prices"] = step(rep, "cross_pool_prices", lambda: cross_pool_prices(swaps_all, pool_objs, val))
+    rep["state_check"] = step(rep, "state_check", lambda: state_check(prim, dsn, LABEL)) or {"status": "error"}
+    rep["tx_targets"] = step(rep, "tx_targets", lambda: to_summary(dsn, LABEL))
     rep["wallets"] = step(rep, "wallet_summary", lambda: wallet_summary(dsn, LABEL))
 
     h = rep["headline"]
@@ -265,14 +316,18 @@ def main():
     h["share of swap txs that became a trade"] = rep["attribution"]["share_with_a_trade"]
     h["chainlink check"] = rep["chainlink"].get("status")
     h["second provider check"] = rep["second_provider"].get("passed")
+    h["balance-state check"] = rep["state_check"].get("status")
+    if rep.get("cross_pool_prices"):
+        h["cross-pool price deviation (median / max %)"] = f'{rep["cross_pool_prices"].get("median_deviation_pct")} / {rep["cross_pool_prices"].get("max_deviation_pct")}'
     if rep.get("wallets"):
         h["wallets with a confirmed trade"] = rep["wallets"]["wallets_with_confirmed_trade"]
     failed = [name for name, s in rep["steps"].items() if not s["ok"]]
     integrity = {"steps_failed": failed, "receipts_inconsistent": col.inconsistent,
                  "chainlink_failed": rep["chainlink"].get("status") == "fail",
-                 "second_provider_failed": rep["second_provider"].get("passed") is False}
+                 "second_provider_failed": rep["second_provider"].get("passed") is False,
+                 "state_check_failed": rep["state_check"].get("status") == "fail"}
     rep["integrity"] = integrity
-    bad = bool(failed or col.inconsistent or integrity["chainlink_failed"] or integrity["second_provider_failed"])
+    bad = bool(failed or col.inconsistent or integrity["chainlink_failed"] or integrity["second_provider_failed"] or integrity["state_check_failed"])
     h["integrity"] = "FAIL: " + json.dumps(integrity) if bad else "no integrity problem found by the checks above"
     return finish(1 if bad else 0)
 

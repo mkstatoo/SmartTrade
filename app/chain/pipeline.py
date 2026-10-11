@@ -240,9 +240,9 @@ def collect_txs(dsn, rpc_factory, chain: str, *, workers: int = 4, limit: int | 
                         res.notes.append(f"receipt of {tx_hash[:12]} disagrees with stored logs")
                     continue
                 with conn.transaction():
-                    conn.execute("INSERT INTO chain_txs(chain, tx_hash, block_hash, block_number, from_addr, status, gas_used, effective_gas_price, source) "
-                                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
-                                 (chain, tx_hash, block_hash, rc["block_number"], rc["from"], rc["status"], rc["gas_used"],
+                    conn.execute("INSERT INTO chain_txs(chain, tx_hash, block_hash, block_number, from_addr, to_addr, status, gas_used, effective_gas_price, source) "
+                                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+                                 (chain, tx_hash, block_hash, rc["block_number"], rc["from"], rc.get("to"), rc["status"], rc["gas_used"],
                                   rc["effective_gas_price"], source))
                     for l in rc["logs"]:
                         if l["address"] not in tokens or not l["topics"] or l["topics"][0] != abi.TOPIC_ERC20_TRANSFER:
