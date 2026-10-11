@@ -204,7 +204,7 @@ class CollectResult:
     notes: list = field(default_factory=list)
 
 
-def collect_txs(dsn, rpc_factory, chain: str, *, workers: int = 4, limit: int | None = None) -> CollectResult:
+def collect_txs(dsn, rpc_factory, chain: str, *, workers: int = 4, limit: int | None = None, since_block: int | None = None) -> CollectResult:
     res = CollectResult(chain)
     conn = _conn(dsn)
     try:
@@ -215,8 +215,9 @@ def collect_txs(dsn, rpc_factory, chain: str, *, workers: int = 4, limit: int | 
         tokens = {r["token0"] for r in pools} | {r["token1"] for r in pools}
         swap_logs = conn.execute(
             "SELECT l.tx_hash, l.block_number, l.block_hash, l.log_index, l.address, l.data FROM chain_logs_canonical l "
-            "JOIN chain_decoded d ON d.log_id = l.id AND d.decoder_version=%s WHERE l.chain=%s AND d.kind = ANY(%s) AND l.address = ANY(%s)",
-            (abi.DECODER_VERSION, chain, list(SWAP_KINDS), list(pool_set))).fetchall()
+            "JOIN chain_decoded d ON d.log_id = l.id AND d.decoder_version=%s WHERE l.chain=%s AND d.kind = ANY(%s) AND l.address = ANY(%s) "
+            "AND l.block_number >= %s",
+            (abi.DECODER_VERSION, chain, list(SWAP_KINDS), list(pool_set), since_block or 0)).fetchall()
         by_tx = defaultdict(list)
         for r in swap_logs:
             by_tx[(r["tx_hash"], r["block_hash"])].append(r)

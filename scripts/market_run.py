@@ -203,7 +203,7 @@ def wallet_summary(dsn, chain):
                   "WHERE chain=%s GROUP BY wallet ORDER BY sum(usd) DESC", chain)
     pnl = pipeline.wallet_pnl(dsn, chain)
     closed = sum(r["totals"]["closed_trades"] for r in pnl.values())
-    known = sum(r["totals"]["closed_trades_fully_known"] for r in pnl.values())
+    known_closed = sum(r["totals"]["closed_trades_fully_known"] for r in pnl.values())
     unk = sum(Decimal(str(r["totals"]["realized_unknown_basis_proceeds_usd"])) for r in pnl.values())
     per = []
     for w, r in pnl.items():
@@ -214,19 +214,20 @@ def wallet_summary(dsn, chain):
                     "fees_in_trades_usd": float(Decimal(str(t["fees_in_trades_usd"]))),
                     "sells_with_unknown_basis_usd": float(Decimal(str(t["realized_unknown_basis_proceeds_usd"]))),
                     "open_positions_marked_at_last_price": sum(1 for x in r["tokens"].values() if x["open_qty"] > 0)})
-    known = [x for x in per if x["closed_with_known_cost"] >= 1]
-    kn_closed = sum(x["closed_with_known_cost"] for x in known)
-    summary = {"wallets_with_a_known_cost_closed_trade": len(known), "closed_trades_with_known_cost": kn_closed,
-               "win_rate_on_those": round(sum(x["wins"] for x in known) / kn_closed, 4) if kn_closed else None,
-               "total_realized_known_cost_usd": round(sum(x["realized_pnl_known_cost_usd"] for x in known), 2),
+    with_cost = [x for x in per if x["closed_with_known_cost"] >= 1]
+    kn_closed = sum(x["closed_with_known_cost"] for x in with_cost)
+    summary = {"wallets_with_a_known_cost_closed_trade": len(with_cost), "closed_trades_with_known_cost": kn_closed,
+               "win_rate_on_those": round(sum(x["wins"] for x in with_cost) / kn_closed, 4) if kn_closed else None,
+               "total_realized_known_cost_usd": round(sum(x["realized_pnl_known_cost_usd"] for x in with_cost), 2),
                "total_unrealized_usd_all_wallets": round(sum(x["unrealized_pnl_usd"] for x in per), 2),
-               "top_by_realized_known_cost": sorted(known, key=lambda x: -x["realized_pnl_known_cost_usd"])[:10],
-               "bottom_by_realized_known_cost": sorted(known, key=lambda x: x["realized_pnl_known_cost_usd"])[:5],
+               "top_by_realized_known_cost": sorted(with_cost, key=lambda x: -x["realized_pnl_known_cost_usd"])[:10],
+               "bottom_by_realized_known_cost": sorted(with_cost, key=lambda x: x["realized_pnl_known_cost_usd"])[:5],
+               "unrealized_caveat": "marked at the LAST execution price seen in this window; in thin pools that price is not what a position could be sold for, so treat it as indicative only",
                "caveat": "observed only inside this window: no history before it, so cost basis of earlier holdings is unknown (excluded, never invented); "
                          "wallets are tx.from only; execution price only (no off-chain costs); a ranking from one window is NOT evidence of skill"}
     return {"pnl_overview": summary, "wallets": len(rows), "wallets_with_confirmed_trade": sum(1 for r in rows if r["c"]), "wallets_with_2plus_trades": sum(1 for r in rows if r["n"] >= 2),
             "top_by_usd": [{"wallet": r["wallet"], "trades": r["n"], "usd": float(r["usd"])} for r in rows[:10]],
-            "pnl": {"wallets_with_pnl": len(pnl), "closed_trades": closed, "closed_trades_with_known_cost": known,
+            "pnl": {"wallets_with_pnl": len(pnl), "closed_trades": closed, "closed_trades_with_known_cost": known_closed,
                     "sells_with_unknown_basis_usd": float(unk),
                     "trades_with_unpriced_gas": sum(r["gas_unpriced_trades"] for r in pnl.values()),
                     "note": "window is short: most sells have no earlier buy in the data, so their cost is UNKNOWN and is not turned into a profit or loss"}}
@@ -310,11 +311,15 @@ def main():
                          "min": float(min(p[1] for p in series.pts)) if series.pts else None, "max": float(max(p[1] for p in series.pts)) if series.pts else None}
     rep["chainlink"] = step(rep, "chainlink_check", lambda: chainlink_check(prim, cfg, series, prim.head())) or {"status": "error"}
 
-    col = step(rep, "collect_receipts", lambda: pipeline.collect_txs(dsn, lambda: JsonRpcSource(prim_url, timeout=30, retries=3, backoff=1.0),
-                                                                      LABEL, workers=WORKERS, limit=RECEIPT_LIMIT))
+    mk = lambda: JsonRpcSource(prim_url, timeout=30, retries=3, backoff=1.0)  # noqa: E731
+    # tail of the window first: the balance-state check only works while the node still serves state for those blocks
+    tail = step(rep, "collect_tail_receipts", lambda: pipeline.collect_txs(dsn, mk, LABEL, workers=WORKERS, since_block=last - 80))
+    if tail is not None and step(rep, "derive_tail", lambda: pipeline.derive_trades(dsn, LABEL, cfg)) is not None:
+        rep["state_check"] = step(rep, "state_check", lambda: state_check(prim, dsn, LABEL)) or {"status": "error"}
+    col = step(rep, "collect_receipts", lambda: pipeline.collect_txs(dsn, mk, LABEL, workers=WORKERS, limit=RECEIPT_LIMIT))
     if col is None:
         return finish(1)
-    rep["receipts"] = {"stored": col.txs, "transfers": col.transfers, "errors": col.receipt_errors, "inconsistent_with_getlogs": col.inconsistent,
+    rep["receipts"] = {"stored": col.txs + (tail.txs if tail else 0), "transfers": col.transfers, "errors": col.receipt_errors + (tail.receipt_errors if tail else 0), "inconsistent_with_getlogs": col.inconsistent + (tail.inconsistent if tail else 0),
                        "decode_errors": col.decode_errors, "notes": col.notes}
     der = step(rep, "derive_trades", lambda: pipeline.derive_trades(dsn, LABEL, cfg))
     if der is None:
@@ -334,14 +339,14 @@ def main():
     else:
         rep["second_provider"] = {"passed": None, "note": "no verifier provider available"}
     rep["cross_pool_prices"] = step(rep, "cross_pool_prices", lambda: cross_pool_prices(swaps_all, pool_objs, val))
-    rep["state_check"] = step(rep, "state_check", lambda: state_check(prim, dsn, LABEL)) or {"status": "error"}
+    rep.setdefault("state_check", {"status": "error: tail stage did not run"})
     rep["tx_targets"] = step(rep, "tx_targets", lambda: to_summary(dsn, LABEL))
     rep["wallets"] = step(rep, "wallet_summary", lambda: wallet_summary(dsn, LABEL))
 
     h = rep["headline"]
     h["window blocks (discovery + watch)"] = f"{DISC} + {WATCH}"
     h["pools watched"] = len(pools)
-    h["receipts stored / errors / inconsistent"] = f"{col.txs} / {col.receipt_errors} / {col.inconsistent}"
+    h["receipts stored / errors / inconsistent"] = f'{rep["receipts"]["stored"]} / {rep["receipts"]["errors"]} / {rep["receipts"]["inconsistent_with_getlogs"]}'
     h["trades (confirmed / mismatch)"] = f"{der.trades} ({der.confirmed} / {der.mismatch})"
     h["share of swap txs that became a trade"] = rep["attribution"]["share_with_a_trade"]
     h["chainlink check"] = rep["chainlink"].get("status")
@@ -352,12 +357,12 @@ def main():
     if rep.get("wallets"):
         h["wallets with a confirmed trade"] = rep["wallets"]["wallets_with_confirmed_trade"]
     failed = [name for name, s in rep["steps"].items() if not s["ok"]]
-    integrity = {"steps_failed": failed, "receipts_inconsistent": col.inconsistent,
+    integrity = {"steps_failed": failed, "receipts_inconsistent": rep["receipts"]["inconsistent_with_getlogs"],
                  "chainlink_failed": rep["chainlink"].get("status") == "fail",
                  "second_provider_failed": rep["second_provider"].get("passed") is False,
                  "state_check_failed": rep["state_check"].get("status") == "fail"}
     rep["integrity"] = integrity
-    bad = bool(failed or col.inconsistent or integrity["chainlink_failed"] or integrity["second_provider_failed"] or integrity["state_check_failed"])
+    bad = bool(failed or rep["receipts"]["inconsistent_with_getlogs"] or integrity["chainlink_failed"] or integrity["second_provider_failed"] or integrity["state_check_failed"])
     h["integrity"] = "FAIL: " + json.dumps(integrity) if bad else "no integrity problem found by the checks above"
     return finish(1 if bad else 0)
 
