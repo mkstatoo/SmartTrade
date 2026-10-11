@@ -94,6 +94,9 @@ def main():
         md.append(f"## {r['chain']}: " + ("PASS" if r.get("passed") else ("SKIPPED" if r.get("skipped") else "FAIL")))
         md.append("```\n" + json.dumps(r, indent=1, default=str) + "\n```")
     (out / "live_verify.md").write_text("\n".join(md) + "\n")
+    if all(r.get("skipped") for r in reports):
+        print("INCONCLUSIVE: no chain could be verified (no two usable providers)", file=sys.stderr)
+        return 2                                         # a run that verified nothing must not look green
     return 0 if all(r.get("passed") or r.get("skipped") for r in reports) else 1
 
 

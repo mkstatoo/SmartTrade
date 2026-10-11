@@ -162,3 +162,20 @@ def test_unreachable_endpoint_error_message_has_no_url():
     with pytest.raises(RpcError) as e:
         r.head()
     assert "KEY123" not in str(e.value)
+
+
+def test_sends_an_identifying_user_agent_and_error_body_snippet(srv):
+    seen = {}
+    ch = FakeChain(5)
+    s = srv(ch)
+    orig = s.httpd.RequestHandlerClass.do_POST
+
+    def spy(self):
+        seen["ua"] = self.headers.get("user-agent")
+        return orig(self)
+    s.httpd.RequestHandlerClass.do_POST = spy
+    src(s.url).head()
+    assert seen["ua"].startswith("smart-copy-trading-research/")            # default Python agent is rejected (403) by many gateways
+    s2 = srv(ch, {1: 403})
+    with pytest.raises(RpcError, match="HTTP 403"):
+        src(s2.url, retries=0).head()

@@ -14,6 +14,16 @@ from urllib.parse import urlsplit
 HEX32 = re.compile(r"^0x[0-9a-fA-F]{64}$")
 HEX20 = re.compile(r"^0x[0-9a-fA-F]{40}$")
 MAX_RESPONSE_BYTES = 64 * 1024 * 1024
+USER_AGENT = "smart-copy-trading-research/0.4.4 (+https://github.com/mkstatoo/SmartTrade)"   # many gateways reject the default Python agent with 403
+
+
+def _snippet(raw) -> str:
+    """First characters of an error body for diagnosis (a gateway message, never the request URL)."""
+    try:
+        t = raw.decode("utf-8", "replace") if isinstance(raw, (bytes, bytearray)) else str(raw)
+    except Exception:  # noqa: BLE001
+        return ""
+    return " ".join(t.split())[:100]
 
 
 class RpcError(RuntimeError):
@@ -48,21 +58,25 @@ class JsonRpcSource:
         last = None
         for attempt in range(self.retries + 1):
             try:
-                req = urllib.request.Request(self._url, data=body, headers={"content-type": "application/json"})
+                req = urllib.request.Request(self._url, data=body, headers={"content-type": "application/json", "user-agent": USER_AGENT, "accept": "application/json"})
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                     raw = resp.read(MAX_RESPONSE_BYTES + 1)
                 if len(raw) > MAX_RESPONSE_BYTES:
                     raise RpcError("response too large")
                 msg = json.loads(raw)
             except urllib.error.HTTPError as exc:
-                last = RpcError(f"HTTP {exc.code}")
+                try:
+                    detail = _snippet(exc.read(300))
+                except Exception:  # noqa: BLE001
+                    detail = ""
+                last = RpcError(f"HTTP {exc.code}" + (f": {detail}" if detail else ""))
                 if exc.code not in (429, 500, 502, 503, 504):
                     raise last from None
             except (urllib.error.URLError, TimeoutError, ConnectionError, json.JSONDecodeError, OSError) as exc:
                 last = RpcError(f"transport error: {type(exc).__name__}")
             else:
                 if not isinstance(msg, dict) or msg.get("jsonrpc") != "2.0" or msg.get("id") != self._id:
-                    raise RpcError("malformed or mismatched JSON-RPC response")
+                    raise RpcError("malformed or mismatched JSON-RPC response: " + _snippet(raw))
                 if "error" in msg:
                     e = msg["error"] if isinstance(msg["error"], dict) else {}
                     raise RpcError(str(e.get("message", "rpc error"))[:200], e.get("code"))
