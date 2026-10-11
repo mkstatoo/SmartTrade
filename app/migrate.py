@@ -1,8 +1,8 @@
 """Schema installer / migration runner:   python -m app.migrate
 
   * empty database            -> data/schema.sql (full current schema)
-  * v0.3 database             -> 001..005
-  * v0.4 / v0.4.1 database    -> 002..005
+  * v0.3 database             -> 001..006
+  * v0.4 / v0.4.1 database    -> 002..006
   * recorded in schema_migrations -> only the pending ones
 Takes an advisory lock so concurrent starts cannot race, and refuses to finish if any constraint is still NOT VALID.
 """
@@ -15,7 +15,7 @@ from pathlib import Path
 DATA = Path(__file__).resolve().parents[1] / "data"
 MIGRATIONS = [("001_v03_to_v04", "001_v03_to_v04.sql"), ("002_v0_4_1", "002_v0_4_1.sql"),
               ("003_v0_4_2", "003_v0_4_2.sql"), ("004_v0_4_3", "004_v0_4_3.sql"),
-              ("005_v0_4_4", "005_v0_4_4.sql")]
+              ("005_v0_4_4", "005_v0_4_4.sql"), ("006_v0_4_5", "006_v0_4_5.sql")]
 LOCK_ID = 5_451_103
 
 

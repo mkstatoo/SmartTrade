@@ -45,6 +45,19 @@ def _hex_int(x, what) -> int:
     return int(x, 16)
 
 
+def _parse_log(l: dict) -> dict:
+    try:
+        topics = [t.lower() for t in l["topics"]]
+        if not (HEX32.match(l["blockHash"]) and HEX32.match(l["transactionHash"]) and HEX20.match(l["address"])
+                and all(HEX32.match(t) for t in topics) and re.fullmatch(r"0x([0-9a-fA-F]{2})*", l["data"])):
+            raise ValueError
+        return {"block_number": _hex_int(l["blockNumber"], "blockNumber"), "block_hash": l["blockHash"].lower(),
+                "tx_hash": l["transactionHash"].lower(), "log_index": _hex_int(l["logIndex"], "logIndex"),
+                "address": l["address"].lower(), "topics": topics, "data": l["data"].lower()}
+    except (KeyError, ValueError, AttributeError, TypeError, RpcError):
+        raise RpcError("malformed log entry") from None
+
+
 class JsonRpcSource:
     def __init__(self, url: str, timeout: float = 20.0, retries: int = 4, backoff: float = 0.5, sleep=time.sleep):
         self._url, self.timeout, self.retries, self.backoff, self._sleep = url, timeout, retries, backoff, sleep
@@ -113,16 +126,49 @@ class JsonRpcSource:
             raise RpcError("eth_getLogs did not return a list")
         out = []
         for l in raw:
-            try:
-                if l.get("removed"):
-                    continue                                             # nodes flag logs of orphaned blocks
-                topics = [t.lower() for t in l["topics"]]
-                if not (HEX32.match(l["blockHash"]) and HEX32.match(l["transactionHash"]) and HEX20.match(l["address"])
-                        and all(HEX32.match(t) for t in topics) and re.fullmatch(r"0x([0-9a-fA-F]{2})*", l["data"])):
-                    raise ValueError
-                out.append({"block_number": _hex_int(l["blockNumber"], "blockNumber"), "block_hash": l["blockHash"].lower(),
-                            "tx_hash": l["transactionHash"].lower(), "log_index": _hex_int(l["logIndex"], "logIndex"),
-                            "address": l["address"].lower(), "topics": topics, "data": l["data"].lower()})
-            except (KeyError, ValueError, AttributeError, TypeError, RpcError):
-                raise RpcError("malformed log entry") from None
+            if isinstance(l, dict) and l.get("removed"):
+                continue                                                 # nodes flag logs of orphaned blocks
+            out.append(_parse_log(l))
         return out
+
+    # ---------------------------------------------------------------- transaction level (wallet attribution)
+    def tx(self, tx_hash: str) -> dict:
+        r = self._call("eth_getTransactionByHash", [tx_hash])
+        if r is None:
+            raise RpcError("transaction not available")
+        try:
+            if not (isinstance(r, dict) and HEX32.match(r["hash"]) and HEX20.match(r["from"]) and r["blockHash"] and HEX32.match(r["blockHash"])):
+                raise ValueError
+            if r["hash"].lower() != tx_hash.lower():
+                raise RpcError("node returned a different transaction than requested")
+            return {"tx_hash": r["hash"].lower(), "from": r["from"].lower(), "to": r["to"].lower() if r.get("to") else None,
+                    "value": _hex_int(r.get("value", "0x0"), "value"), "block_number": _hex_int(r["blockNumber"], "blockNumber"),
+                    "block_hash": r["blockHash"].lower(), "tx_index": _hex_int(r["transactionIndex"], "transactionIndex")}
+        except (KeyError, ValueError, TypeError, AttributeError):
+            raise RpcError("malformed transaction") from None
+
+    def receipt(self, tx_hash: str) -> dict:
+        r = self._call("eth_getTransactionReceipt", [tx_hash])
+        if r is None:
+            raise RpcError("receipt not available")
+        try:
+            if r["transactionHash"].lower() != tx_hash.lower():
+                raise RpcError("node returned a different receipt than requested")
+            if not (HEX32.match(r["blockHash"]) and HEX20.match(r["from"])):
+                raise ValueError
+            return {"tx_hash": tx_hash.lower(), "block_number": _hex_int(r["blockNumber"], "blockNumber"),
+                    "block_hash": r["blockHash"].lower(), "from": r["from"].lower(),
+                    "status": _hex_int(r.get("status", "0x1"), "status"), "gas_used": _hex_int(r["gasUsed"], "gasUsed"),
+                    "effective_gas_price": _hex_int(r.get("effectiveGasPrice", "0x0"), "effectiveGasPrice"),
+                    "logs": [_parse_log(l) for l in r["logs"]]}
+        except (KeyError, ValueError, TypeError, AttributeError):
+            raise RpcError("malformed receipt") from None
+
+    def call(self, to: str, data: str, block: int | None = None) -> str:
+        """eth_call at `block` (None = latest). Returns the raw hex result."""
+        if not HEX20.match(to) or not re.fullmatch(r"0x([0-9a-fA-F]{2})*", data):
+            raise ValueError("bad eth_call arguments")
+        r = self._call("eth_call", [{"to": to, "data": data}, "latest" if block is None else hex(block)])
+        if not isinstance(r, str) or not re.fullmatch(r"0x([0-9a-fA-F]{2})*", r):
+            raise RpcError("malformed eth_call result")
+        return r.lower()
