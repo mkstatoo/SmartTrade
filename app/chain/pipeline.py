@@ -6,7 +6,7 @@ separate step, see scripts/market_run.py):
                        value their swaps in USD and keep the top-K by USD volume (+ WETH/stable reference pools for the ETH price);
   2. collect_txs     - for swaps of the watched pools fetch the transaction receipt (tx.from, status, gas, every ERC-20 Transfer of the
                        watched tokens) and cross-check it against the logs already stored from eth_getLogs;
-  3. derive_trades   - wallet = tx.from. A trade exists only for a token whose net swap flow is PRICED from the swaps themselves
+  3. derive_trades   - ETH price is strictly causal (only earlier swaps; none yet -> `no_eth_price`); wallet = tx.from. A trade exists only for a token whose net swap flow is PRICED from the swaps themselves
                        (stable = 1 USD, WETH from WETH/stable swaps) and is compared with the sender's own Transfer delta.
                        'confirmed' = the sender really received/paid that amount (+-tol); 'mismatch' = it did not.
                        Everything that cannot be attributed is stored in chain_trade_skips with a reason - never guessed.
@@ -54,23 +54,35 @@ def load_swaps(conn, chain: str) -> list[dict]:
     return out
 
 
-def robust_eth_series(points, *, window: int = 9, tol: Decimal = Decimal("0.03")):
-    """points: [(block, log_index, price)]. A point that deviates more than `tol` from the median of its neighbours
-    (window points around it) is dropped as an outlier. Returns (EthSeries, dropped_count)."""
+def robust_eth_series(points, *, window: int = 9, tol: Decimal = Decimal("0.03"), warmup: int = 5):
+    """Causal outlier filter. points: [(block, log_index, price)]. Each point is judged ONLY against the median of the last `window`
+    accepted points that came BEFORE it, so nothing that happens later can change the price used for an earlier moment.
+      * the first `warmup` points seed the reference and are not usable themselves (no price yet -> `no_eth_price` for those moments);
+      * a point more than `tol` away from that median is dropped;
+      * `warmup` consecutive dropped points that agree with each other are a real regime change: the reference is re-seeded from them
+        (they stay unused; the new regime is usable from the next point on).
+    Returns (EthSeries, dropped_count)."""
     pts = sorted(points, key=lambda p: (p[0], p[1]))
-    keep, dropped = [], 0
-    for i, (b, li, px) in enumerate(pts):
-        lo, hi = max(0, i - window // 2), min(len(pts), i + window // 2 + 1)
-        neigh = [p[2] for j, p in enumerate(pts[lo:hi], lo) if j != i]
-        if len(neigh) >= 2:
-            med = statistics.median(neigh)
-            if med > 0 and abs(px - med) / med > tol:
-                dropped += 1
-                continue
-        keep.append((b, li, px))
     s = market.EthSeries()
-    for b, li, px in keep:
-        s.add(b, li, px)
+    hist, rejects, dropped = [], [], 0
+    for b, li, px in pts:
+        if len(hist) < warmup:
+            hist.append(px)
+            continue
+        med = statistics.median(hist[-window:])
+        if med > 0 and abs(px - med) / med <= tol:
+            s.add(b, li, px)
+            hist.append(px)
+            rejects.clear()
+            continue
+        dropped += 1
+        rejects.append(px)
+        if len(rejects) >= warmup:
+            rm = statistics.median(rejects)
+            if rm > 0 and all(abs(r - rm) / rm <= tol for r in rejects):
+                hist, rejects = list(rejects), []
+            else:
+                rejects.pop(0)
     return s.finalize(), dropped
 
 
@@ -357,8 +369,10 @@ def derive_trades(dsn, chain: str, cfg: dict, *, method_version: int = METHOD_VE
             if made:
                 px_eth = series.at(sw[0]["block"], sw[0]["log_index"])
                 gas = (Decimal(int(tx["gas_used"])) * Decimal(int(tx["effective_gas_price"])) / ETH_DEC * px_eth) if px_eth else Decimal(0)
-                for i, m in enumerate(made):
-                    m["gas_usd"] = gas if i == 0 else Decimal(0)
+                target = next((m for m in made if m["conf"] == "confirmed"), made[0])     # gas must stay with a trade that PnL will use
+                for m in made:
+                    m["gas_usd"] = gas if m is target else Decimal(0)
+                    m["evidence"]["gas_on_this_trade"] = m is target
                     m["evidence"]["gas_priced"] = bool(px_eth)
                     trades.append((key, sw[0]["block"], ts, wallet, m))
         with conn.transaction():
@@ -395,10 +409,16 @@ def wallet_pnl(dsn, chain: str, *, method_version: int = METHOD_VERSION, method:
                             "ORDER BY block_number, id", (chain, method_version)).fetchall()
     finally:
         conn.close()
-    marks, ledgers = {}, defaultdict(list)
+    marks, ledgers, unpriced_gas = {}, defaultdict(list), Counter()
     for r in rows:
+        if not r["evidence"].get("gas_priced", True) and r["evidence"].get("gas_on_this_trade"):
+            unpriced_gas[r["wallet"]] += 1
         marks[token_key(chain, r["token"])] = r["price_usd"]
         ledgers[r["wallet"]].append({"kind": r["side"], "ts": r["ts"], "qty": r["qty"], "usd": r["usd"], "fee_usd": r["gas_usd"],
                                      "token": r["token"], "chain": chain, "tx_hash": r["tx_hash"],
                                      "log_index": r["evidence"]["first_log_index"], "block_number": r["block_number"]})
-    return {w: compute_pnl(e, method=method, marks=marks) for w, e in ledgers.items()}
+    out = {}
+    for w, e in ledgers.items():
+        out[w] = compute_pnl(e, method=method, marks=marks)
+        out[w]["gas_unpriced_trades"] = unpriced_gas[w]      # no ETH price existed yet at that moment: gas counted as 0, flagged here
+    return out

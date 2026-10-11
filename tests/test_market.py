@@ -164,7 +164,7 @@ def test_eth_series_lookup_ordering():
     s = m.EthSeries()
     s.add(20, 0, Decimal(2)); s.add(10, 5, Decimal(1)); s.add(10, 9, Decimal("1.5"))
     s.finalize()
-    assert s.at(10, 4) == Decimal(1)                 # before the first point: first point (documented)
+    assert s.at(10, 4) is None                       # before the first point there is NO price (never a later one)
     assert s.at(10, 5) == Decimal(1) and s.at(10, 8) == Decimal(1)
     assert s.at(10, 9) == Decimal("1.5") and s.at(19, 99) == Decimal("1.5")
     assert s.at(20, 0) == Decimal(2) and s.at(999, 0) == Decimal(2)
@@ -179,3 +179,29 @@ def test_eth_price_from_swap():
     assert m.eth_price_from_swap(CFG, dec, p, 3_000_000_000, 10 ** 18) is None       # same direction: not a swap
     other = m.Pool(addr(6), "uniswap_v3", CFG["v3_factory"], TOK, WETH, 500)
     assert m.eth_price_from_swap(CFG, {**dec, TOK: 18}, other, 1, -1) is None        # WETH/non-stable is not a price source
+
+
+def _pts(prices, start=100):
+    return [(start + i, 0, Decimal(str(p))) for i, p in enumerate(prices)]
+
+
+def test_robust_series_is_causal_and_warmup_points_are_not_usable():
+    from app.chain import pipeline
+    ser, dropped = pipeline.robust_eth_series(_pts([3000, 3001, 3002, 3001, 3000, 3002, 3003, 3300, 3004, 3005]))
+    assert dropped == 1                                              # the 3300 print is an outlier against what came BEFORE it
+    assert ser.at(104, 0) is None                                    # inside warm-up: no price yet
+    assert ser.at(105, 0) == Decimal(3002) and ser.at(107, 0) == Decimal(3003) and ser.at(109, 0) == Decimal(3005)
+    # changing anything AFTER a moment cannot change the price at that moment
+    a, _ = pipeline.robust_eth_series(_pts([3000, 3001, 3002, 3001, 3000, 3002, 3003, 3004]))
+    b, _ = pipeline.robust_eth_series(_pts([3000, 3001, 3002, 3001, 3000, 3002, 3003, 3004, 9999, 1, 5000]))
+    for blk in range(100, 108):
+        assert a.at(blk, 0) == b.at(blk, 0)
+
+
+def test_robust_series_recovers_from_a_real_regime_change_without_looking_ahead():
+    from app.chain import pipeline
+    ser, dropped = pipeline.robust_eth_series(_pts([3000] * 6 + [3300, 3301, 3302, 3300, 3301, 3302, 3303]))
+    assert dropped == 5                                              # five consistent rejects trigger re-seeding
+    assert ser.at(105, 0) == Decimal(3000)
+    assert ser.at(111, 0) == Decimal(3302) and ser.at(112, 0) == Decimal(3303)
+    assert ser.at(110, 0) == Decimal(3000)                           # the new regime is NOT applied retroactively

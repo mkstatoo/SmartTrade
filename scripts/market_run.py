@@ -33,7 +33,7 @@ CONF = 12
 DISC = int(os.getenv("MARKET_DISCOVERY_BLOCKS", "300"))
 WATCH = int(os.getenv("MARKET_WATCH_BLOCKS", "1500"))
 TOP_K = int(os.getenv("MARKET_TOP_K", "30"))
-RECEIPT_LIMIT = int(os.getenv("MARKET_RECEIPT_LIMIT", "20000"))
+RECEIPT_LIMIT = int(os.getenv("MARKET_RECEIPT_LIMIT", "150000"))
 CANDIDATES = int(os.getenv("MARKET_CANDIDATES", "300"))
 SAMPLE = int(os.getenv("MARKET_VERIFY_SAMPLE", "50"))
 WORKERS = int(os.getenv("MARKET_WORKERS", "4"))
@@ -203,10 +203,30 @@ def wallet_summary(dsn, chain):
     closed = sum(r["totals"]["closed_trades"] for r in pnl.values())
     known = sum(r["totals"]["closed_trades_fully_known"] for r in pnl.values())
     unk = sum(Decimal(str(r["totals"]["realized_unknown_basis_proceeds_usd"])) for r in pnl.values())
-    return {"wallets": len(rows), "wallets_with_confirmed_trade": sum(1 for r in rows if r["c"]), "wallets_with_2plus_trades": sum(1 for r in rows if r["n"] >= 2),
+    per = []
+    for w, r in pnl.items():
+        t = r["totals"]
+        per.append({"wallet": w, "closed_trades": t["closed_trades"], "closed_with_known_cost": t["closed_trades_fully_known"], "wins": t["wins"],
+                    "realized_pnl_known_cost_usd": float(Decimal(str(t["realized_pnl_usd"]))),
+                    "unrealized_pnl_usd": float(Decimal(str(t["unrealized_pnl_usd"]))),
+                    "fees_in_trades_usd": float(Decimal(str(t["fees_in_trades_usd"]))),
+                    "sells_with_unknown_basis_usd": float(Decimal(str(t["realized_unknown_basis_proceeds_usd"]))),
+                    "open_positions_marked_at_last_price": sum(1 for x in r["tokens"].values() if x["open_qty"] > 0)})
+    known = [x for x in per if x["closed_with_known_cost"] >= 1]
+    kn_closed = sum(x["closed_with_known_cost"] for x in known)
+    summary = {"wallets_with_a_known_cost_closed_trade": len(known), "closed_trades_with_known_cost": kn_closed,
+               "win_rate_on_those": round(sum(x["wins"] for x in known) / kn_closed, 4) if kn_closed else None,
+               "total_realized_known_cost_usd": round(sum(x["realized_pnl_known_cost_usd"] for x in known), 2),
+               "total_unrealized_usd_all_wallets": round(sum(x["unrealized_pnl_usd"] for x in per), 2),
+               "top_by_realized_known_cost": sorted(known, key=lambda x: -x["realized_pnl_known_cost_usd"])[:10],
+               "bottom_by_realized_known_cost": sorted(known, key=lambda x: x["realized_pnl_known_cost_usd"])[:5],
+               "caveat": "observed only inside this window: no history before it, so cost basis of earlier holdings is unknown (excluded, never invented); "
+                         "wallets are tx.from only; execution price only (no off-chain costs); a ranking from one window is NOT evidence of skill"}
+    return {"pnl_overview": summary, "wallets": len(rows), "wallets_with_confirmed_trade": sum(1 for r in rows if r["c"]), "wallets_with_2plus_trades": sum(1 for r in rows if r["n"] >= 2),
             "top_by_usd": [{"wallet": r["wallet"], "trades": r["n"], "usd": float(r["usd"])} for r in rows[:10]],
             "pnl": {"wallets_with_pnl": len(pnl), "closed_trades": closed, "closed_trades_with_known_cost": known,
                     "sells_with_unknown_basis_usd": float(unk),
+                    "trades_with_unpriced_gas": sum(r["gas_unpriced_trades"] for r in pnl.values()),
                     "note": "window is short: most sells have no earlier buy in the data, so their cost is UNKNOWN and is not turned into a profit or loss"}}
 
 

@@ -28,10 +28,13 @@ M = [  # (name, file, old, new, tests)
     ("pipeline: wallet is not tx.from", "app/chain/pipeline.py", 'wallet = tx["from_addr"]', 'wallet = pools[sw[0]["pool"]].token0', ["tests/test_pipeline.py"]),
     ("pipeline: sender-delta check skipped", "app/chain/pipeline.py", 'conf = "confirmed" if (_sign(delta) == _sign(net[t]) and rel <= tol) else "mismatch"', 'conf = "confirmed"', ["tests/test_pipeline.py"]),
     ("pipeline: zero sender delta attributed anyway", "app/chain/pipeline.py", "                if delta == 0:\n", "                if False:\n", ["tests/test_pipeline.py"]),
-    ("pipeline: ETH outliers kept", "app/chain/pipeline.py", "if med > 0 and abs(px - med) / med > tol:", "if False:", ["tests/test_pipeline.py"]),
+    ("pipeline: ETH outliers kept", "app/chain/pipeline.py", "if med > 0 and abs(px - med) / med <= tol:", "if True:", ["tests/test_pipeline.py"]),
     ("pipeline: receipt not cross-checked with getLogs", "app/chain/pipeline.py", "if rc[\"block_hash\"] != block_hash or not stored <= got:", "if False:", ["tests/test_pipeline.py"]),
-    ("pipeline: gas attached to every trade", "app/chain/pipeline.py", "m[\"gas_usd\"] = gas if i == 0 else Decimal(0)", "m[\"gas_usd\"] = gas", ["tests/test_pipeline.py"]),
+    ("pipeline: gas attached to every trade", "app/chain/pipeline.py", "m[\"gas_usd\"] = gas if m is target else Decimal(0)", "m[\"gas_usd\"] = gas", ["tests/test_pipeline.py"]),
     ("pipeline: mismatch trades enter PnL", "app/chain/pipeline.py", "AND confidence='confirmed' \"", "\"", ["tests/test_pipeline.py"]),
+    ("market: later ETH price used before the first print", "app/chain/market.py", "return self.pts[lo - 1][1] if lo else None", "return self.pts[lo - 1][1] if lo else self.pts[0][1]", ["tests/test_market.py", "tests/test_pipeline.py"]),
+    ("pipeline: gas goes to the first trade, not a confirmed one", "app/chain/pipeline.py", 'target = next((m for m in made if m["conf"] == "confirmed"), made[0])', "target = made[0]", ["tests/test_pipeline.py"]),
+    ("pipeline: outlier filter never warms up (no causal history)", "app/chain/pipeline.py", "if len(hist) < warmup:", "if False:", ["tests/test_market.py", "tests/test_pipeline.py"]),
     ("decoder: V3 tick unsigned", "app/chain/abi.py", '"tick": _int(data, 4, 24)', '"tick": _uint(data, 4, 24)', ["tests/test_chain_abi.py"]),
 ]
 

@@ -225,7 +225,8 @@ class EthSeries:
         return self
 
     def at(self, block: int, log_index: int):
-        """Latest price at or before (block, log_index); before the first point the first point is used (documented, rare)."""
+        """Latest price at or before (block, log_index). Before the first point there is NO price (None): a later price is never
+        attached to an earlier moment (the caller records the reason `no_eth_price`)."""
         if not self.pts:
             return None
         lo, hi, key = 0, len(self.pts), (block, log_index)
@@ -235,7 +236,7 @@ class EthSeries:
                 lo = mid + 1
             else:
                 hi = mid
-        return self.pts[lo - 1][1] if lo else self.pts[0][1]
+        return self.pts[lo - 1][1] if lo else None
 
 
 def eth_price_from_swap(cfg: dict, decimals: dict, pool: Pool, d0: int, d1: int):

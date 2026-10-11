@@ -23,8 +23,10 @@ P_REF, P_REF2, P_AW, P_BU, P_AU, P_AB, P_IMP = (addr(0x1001), addr(0x1002), addr
 BAD_BLOCK_OFFSET = 20          # the manipulated ETH print happens this many blocks after `start`
 
 
-def eth_price(n: int) -> Decimal:
-    return Decimal(3000) + Decimal(n % 40) * Decimal("1.5")
+def eth_price(n: int, shock=None) -> Decimal:
+    """shock=(block, factor): every price AFTER `block` is multiplied by factor (used to prove that the future cannot change the past)."""
+    px = Decimal(3000) + Decimal(n % 40) * Decimal("1.5")
+    return px * Decimal(str(shock[1])) if shock and n > shock[0] else px
 
 
 def tok_price(t: str, n: int) -> Decimal:
@@ -65,12 +67,15 @@ def install_evm(chain: FakeChain):
 
 
 class World:
-    def __init__(self, blocks: int, start: int = 0):
-        self.blocks, self.start = blocks, start
+    def __init__(self, blocks: int, start: int = 0, shock=None):
+        self.blocks, self.start, self.shock = blocks, start, shock
         self.logs = {n: [] for n in range(blocks)}
         self.meta = {}
         self.truth = {"trades": [], "skips": []}
         self.k = 0
+
+    def eth(self, n):
+        return eth_price(n, self.shock)
 
     def _tx(self, n, frm, status=1, gas=150_000, egp=20 * 10 ** 9, to=None):
         self.k += 1
@@ -99,8 +104,8 @@ class World:
     def _amounts(self, n, base, quote, qty: Decimal):
         braw = int(qty * Decimal(10) ** DEC[base])
         usd = Decimal(braw) / Decimal(10) ** DEC[base] * tok_price(base, n)
-        qraw = int(usd / (eth_price(n) if quote == WETH else 1) * Decimal(10) ** DEC[quote])
-        tq = Decimal(qraw) / Decimal(10) ** DEC[quote] * (eth_price(n) if quote == WETH else 1)
+        qraw = int(usd / (self.eth(n) if quote == WETH else 1) * Decimal(10) ** DEC[quote])
+        tq = Decimal(qraw) / Decimal(10) ** DEC[quote] * (self.eth(n) if quote == WETH else 1)
         return braw, qraw, Decimal(braw) / Decimal(10) ** DEC[base], tq      # raw base, raw quote, true qty, true usd
 
     def trade(self, n, pool, base, quote, buys, wallet, rng, style="direct", frm=None, fee_bps=0, beneficiary=None):
@@ -132,7 +137,7 @@ class World:
                 w = Decimal(rng.randint(2, 50)) / 10
                 wraw = int(w * 10 ** 18)
                 stable = USDC if pool == P_REF else DAI
-                sraw = int(Decimal(wraw) / Decimal(10) ** 18 * eth_price(n) * Decimal(10) ** DEC[stable])
+                sraw = int(Decimal(wraw) / Decimal(10) ** 18 * self.eth(n) * Decimal(10) ** DEC[stable])
                 tx = self._tx(n, BOT)
                 buys_eth = rng.random() < 0.5
                 pays, gets = ({stable: sraw}, {WETH: wraw}) if buys_eth else ({WETH: wraw}, {stable: sraw})
@@ -143,7 +148,7 @@ class World:
                 self.truth["skips"].append((tx, "quote_only"))
             if n == self.start + BAD_BLOCK_OFFSET:                  # manipulated print: +25% in the DAI pool
                 wraw, tx = 10 ** 18, self._tx(n, BOT)
-                sraw = int(eth_price(n) * Decimal("1.25") * 10 ** 18)
+                sraw = int(self.eth(n) * Decimal("1.25") * 10 ** 18)
                 self._swap(n, tx, P_REF2, None, {DAI: sraw}, {WETH: wraw}, BOT, BOT)
                 self._tr(n, tx, DAI, BOT, P_REF2, sraw); self._tr(n, tx, WETH, P_REF2, BOT, wraw)
                 self.truth["skips"].append((tx, "quote_only"))
@@ -157,21 +162,21 @@ class World:
     def _scenario(self, n, rng):
         w = rng.choice(WALLETS)
         sc = rng.choice(["direct_buy", "direct_sell", "direct_buy_b", "router_buy", "router_fee5", "relayer", "multihop", "arb",
-                         "quote_swap", "no_quote"])
+                         "quote_swap", "no_quote", "multihop_mixed"])
         T = self.truth
         if sc in ("direct_buy", "direct_sell"):
             pool, quote = rng.choice([(P_AW, WETH), (P_AU, USDC)])
             tx, q, u, who = self.trade(n, pool, TOKA, quote, sc == "direct_buy", w, rng)
-            T["trades"].append({"tx": tx, "wallet": w, "token": TOKA, "side": "buy" if sc == "direct_buy" else "sell", "qty": q, "usd": u, "conf": "confirmed"})
+            T["trades"].append({"tx": tx, "wallet": w, "token": TOKA, "side": "buy" if sc == "direct_buy" else "sell", "qty": q, "usd": u, "conf": "confirmed", "quote": quote})
         elif sc == "direct_buy_b":
             tx, q, u, who = self.trade(n, P_BU, TOKB, USDC, rng.random() < 0.5, w, rng)
-            T["trades"].append({"tx": tx, "wallet": w, "token": TOKB, "side": self._side_of(n, tx, TOKB, w), "qty": q, "usd": u, "conf": "confirmed"})
+            T["trades"].append({"tx": tx, "wallet": w, "token": TOKB, "side": self._side_of(n, tx, TOKB, w), "qty": q, "usd": u, "conf": "confirmed", "quote": USDC})
         elif sc == "router_buy":
             tx, q, u, who = self.trade(n, P_AW, TOKA, WETH, True, w, rng, style="router", fee_bps=50)
-            T["trades"].append({"tx": tx, "wallet": w, "token": TOKA, "side": "buy", "qty": q, "usd": u, "conf": "confirmed"})
+            T["trades"].append({"tx": tx, "wallet": w, "token": TOKA, "side": "buy", "qty": q, "usd": u, "conf": "confirmed", "quote": WETH})
         elif sc == "router_fee5":
             tx, q, u, who = self.trade(n, P_AU, TOKA, USDC, True, w, rng, style="router", fee_bps=500)
-            T["trades"].append({"tx": tx, "wallet": w, "token": TOKA, "side": "buy", "qty": q, "usd": u, "conf": "mismatch"})
+            T["trades"].append({"tx": tx, "wallet": w, "token": TOKA, "side": "buy", "qty": q, "usd": u, "conf": "mismatch", "quote": USDC})
         elif sc == "relayer":
             tx, q, u, who = self.trade(n, P_AU, TOKA, USDC, True, w, rng, style="router", frm=RELAYER)
             T["skips"].append((tx, "no_sender_transfer"))
@@ -185,8 +190,20 @@ class World:
             self._swap(n, tx, P_BU, None, {USDC: rb}, {TOKB: bb}, ROUTER, w)
             self._tr(n, tx, TOKA, w, P_AU, ba); self._tr(n, tx, USDC, P_AU, P_BU, ra)
             self._tr(n, tx, TOKB, P_BU, w, bb)
-            T["trades"] += [{"tx": tx, "wallet": w, "token": TOKA, "side": "sell", "qty": qty_a, "usd": Decimal(ra) / 10 ** 6, "conf": "confirmed"},
-                            {"tx": tx, "wallet": w, "token": TOKB, "side": "buy", "qty": qty_b, "usd": Decimal(rb) / 10 ** 6, "conf": "confirmed"}]
+            T["trades"] += [{"tx": tx, "wallet": w, "token": TOKA, "side": "sell", "qty": qty_a, "usd": Decimal(ra) / 10 ** 6, "conf": "confirmed", "quote": USDC},
+                            {"tx": tx, "wallet": w, "token": TOKB, "side": "buy", "qty": qty_b, "usd": Decimal(rb) / 10 ** 6, "conf": "confirmed", "quote": USDC}]
+        elif sc == "multihop_mixed":
+            # sell TOKB (confirmed), buy TOKA through a router that keeps 5% (mismatch). TOKA sorts first, so the FIRST trade of the tx
+            # is the mismatch one: the gas of the transaction must still end up on the confirmed trade.
+            bb, rb, qty_b, _ = self._amounts(n, TOKB, USDC, Decimal(rng.randint(100, 3000)) / 10)
+            ba, ra, qty_a, _ = self._amounts(n, TOKA, USDC, (Decimal(rb) / 10 ** 6 / tok_price(TOKA, n)).quantize(Decimal("0.01")))
+            tx = self._tx(n, w, to=ROUTER)
+            self._swap(n, tx, P_BU, None, {TOKB: bb}, {USDC: rb}, ROUTER, P_AU)
+            self._swap(n, tx, P_AU, None, {USDC: ra}, {TOKA: ba}, ROUTER, ROUTER)
+            self._tr(n, tx, TOKB, w, P_BU, bb); self._tr(n, tx, USDC, P_BU, P_AU, rb)
+            self._tr(n, tx, TOKA, P_AU, ROUTER, ba); self._tr(n, tx, TOKA, ROUTER, w, ba * 95 // 100)
+            T["trades"] += [{"tx": tx, "wallet": w, "token": TOKA, "side": "buy", "qty": qty_a, "usd": Decimal(ra) / 10 ** 6, "conf": "mismatch", "quote": USDC},
+                            {"tx": tx, "wallet": w, "token": TOKB, "side": "sell", "qty": qty_b, "usd": Decimal(rb) / 10 ** 6, "conf": "confirmed", "quote": USDC}]
         elif sc == "arb":
             braw, qraw, _, _ = self._amounts(n, TOKA, WETH, Decimal(25))
             _, qraw2, _, _ = self._amounts(n, TOKA, USDC, Decimal(25))
@@ -197,8 +214,8 @@ class World:
             T["skips"].append((tx, "zero_net_flow"))
         elif sc == "quote_swap":
             tx = self._tx(n, w)
-            self._swap(n, tx, P_REF, None, {WETH: 10 ** 18}, {USDC: int(eth_price(n) * 10 ** 6)}, w, w)
-            self._tr(n, tx, WETH, w, P_REF, 10 ** 18); self._tr(n, tx, USDC, P_REF, w, int(eth_price(n) * 10 ** 6))
+            self._swap(n, tx, P_REF, None, {WETH: 10 ** 18}, {USDC: int(self.eth(n) * 10 ** 6)}, w, w)
+            self._tr(n, tx, WETH, w, P_REF, 10 ** 18); self._tr(n, tx, USDC, P_REF, w, int(self.eth(n) * 10 ** 6))
             T["skips"].append((tx, "quote_only"))
         else:                                                       # no quote leg: TOKA -> TOKB
             tx = self._tx(n, w)

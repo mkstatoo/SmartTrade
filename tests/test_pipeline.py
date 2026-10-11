@@ -29,8 +29,8 @@ def q(dsn, sql, *a):
         return c.execute(sql, a).fetchall()
 
 
-def run_all(db, *, seed=7, blocks=100, top_k=4):
-    w = fm.World(blocks, start=START).build(seed)
+def run_all(db, *, seed=7, blocks=100, top_k=4, shock=None):
+    w = fm.World(blocks, start=START, shock=shock).build(seed)
     ch = w.chain()
     ingest(ch, db, "eth-disc", start_block=0, confirmations=12, max_blocks=START, topics0=pipeline.SWAP_TOPICS)
     disc = pipeline.discover_pools(db, ch, "eth", CFG, discovery_chain="eth-disc", top_k=top_k)
@@ -64,7 +64,13 @@ def test_derived_trades_equal_hidden_truth(db):
     truth = [t for t in w.truth["trades"] if blk[t["tx"]] >= START]
     assert len(truth) > 30                                                # the world is not trivially small
     got = {(r["tx_hash"], r["token"]): r for r in q(db, "SELECT * FROM chain_trades_canonical WHERE chain='eth'")}
-    assert len(got) == len(truth) == der.trades
+    # a WETH-quoted trade before the ETH price exists (first prints = warm-up) must be SKIPPED with a reason, never priced from the future
+    no_price = {r["tx_hash"] for r in q(db, "SELECT tx_hash FROM chain_trade_skips WHERE reason='no_eth_price'")}
+    missing = [t for t in truth if (t["tx"], t["token"]) not in got]
+    for t in missing:
+        assert t["quote"] == fm.WETH and blk[t["tx"]] <= START + 4 and t["tx"] in no_price, t
+    truth = [t for t in truth if (t["tx"], t["token"]) in got]
+    assert len(got) == len(truth) == der.trades and len(missing) < 6
     for t in truth:
         r = got[(t["tx"], t["token"])]
         assert (r["wallet"], r["side"], r["confidence"]) == (t["wallet"], t["side"], t["conf"]), t
@@ -81,24 +87,51 @@ def test_skips_match_truth_and_unwatched_pools_leave_no_trace(db):
     watched = {fm.P_AW, fm.P_BU, fm.P_AU, fm.P_REF, fm.P_REF2}
     expect = {(tx, r) for tx, r in w.truth["skips"] if blk[tx] >= START and r != "no_quote_leg"}
     got = {(r["tx_hash"], r["reason"]) for r in q(db, "SELECT tx_hash, reason FROM chain_trade_skips WHERE chain='eth'")}
-    assert got == expect
+    early = {tx for tx, r in got if r == "no_eth_price"}
+    assert early and all(blk[tx] <= START + 4 for tx in early)            # only before the ETH price exists
+    assert {(tx, r) for tx, r in got if r != "no_eth_price"} == expect
     assert {r for _, r in expect} >= {"quote_only", "no_sender_transfer", "zero_net_flow"}
     quoteless = {tx for tx, r in w.truth["skips"] if r == "no_quote_leg"}
     assert quoteless and not (quoteless & {r["tx_hash"] for r in q(db, "SELECT tx_hash FROM chain_txs WHERE chain='eth'")})
     assert watched                                                         # (pool P_AB was never watched, so its txs were never fetched)
 
 
-def test_gas_is_priced_once_per_transaction_at_the_true_eth_price(db):
+def test_gas_is_priced_once_per_transaction_at_the_true_eth_price_and_stays_with_a_confirmed_trade(db):
+    from collections import defaultdict
     w, ch, disc, col, der = run_all(db)
     blk = block_of(w)
-    rows = q(db, "SELECT tx_hash, sum(gas_usd) g, count(*) n FROM chain_trades_canonical WHERE chain='eth' GROUP BY tx_hash")
-    assert rows
-    for r in rows:
-        n = blk[r["tx_hash"]]
-        meta = w.meta[r["tx_hash"]]
-        exp = Decimal(meta["gas_used"]) * Decimal(meta["egp"]) / 10 ** 18 * fm.eth_price(n)
-        assert abs(r["g"] - exp) <= exp * Decimal("1e-6"), (r["tx_hash"], r["g"], exp)
-    assert any(r["n"] == 2 for r in rows)                                  # the two-hop tx carries its gas exactly once
+    by = defaultdict(list)
+    for r in q(db, "SELECT tx_hash, confidence, gas_usd, evidence FROM chain_trades_canonical WHERE chain='eth'"):
+        by[r["tx_hash"]].append(r)
+    checked = mixed = 0
+    for tx, rs in by.items():
+        if not all(r["evidence"]["gas_priced"] for r in rs):
+            assert all(r["gas_usd"] == 0 for r in rs)                    # no ETH price yet: gas unknown, flagged, not invented
+            continue
+        meta = w.meta[tx]
+        exp = Decimal(meta["gas_used"]) * Decimal(meta["egp"]) / 10 ** 18 * fm.eth_price(blk[tx])
+        holders = [r for r in rs if r["gas_usd"] > 0]
+        confirmed = [r for r in rs if r["confidence"] == "confirmed"]
+        assert len(holders) == 1 and abs(holders[0]["gas_usd"] - exp) <= exp * Decimal("1e-6"), tx
+        assert holders[0] in (confirmed or rs)                           # PnL only reads confirmed trades: the gas must be on one of them
+        mixed += len(rs) == 2 and bool(confirmed) and len(confirmed) == 1
+        checked += 1
+    assert checked > 20 and mixed >= 1 and any(len(rs) == 2 for rs in by.values())
+
+
+def test_future_prices_cannot_change_past_trades(db):
+    from tests.conftest import drop_db, make_db
+    run_all(db)
+    name, dsn2 = make_db("shock")
+    try:
+        migrate(dsn2)
+        run_all(dsn2, shock=(START + 30, 1.6))                         # ETH jumps 60% after block START+30
+        cols = "SELECT tx_hash, wallet, token, side, qty, usd, gas_usd, confidence FROM chain_trades WHERE chain='eth' AND block_number {} %s ORDER BY tx_hash, token"
+        past_a, past_b = q(db, cols.format("<="), START + 30), q(dsn2, cols.format("<="), START + 30)
+        assert len(past_a) > 10 and past_a == past_b                     # identical: USD value, gas, confidence, everything
+        assert q(db, cols.format(">"), START + 30) != q(dsn2, cols.format(">"), START + 30)   # the shock did change what came after
+    finally:
+        drop_db(name)
 
 
 def test_manipulated_eth_print_is_dropped_and_does_not_move_prices(db):
@@ -180,7 +213,8 @@ def test_wallet_pnl_uses_only_confirmed_trades_and_matches_truth(db):
     w, ch, disc, col, der = run_all(db)
     blk = block_of(w)
     pnl = pipeline.wallet_pnl(db, "eth")
-    truth = [t for t in w.truth["trades"] if blk[t["tx"]] >= START and t["conf"] == "confirmed"]
+    derived = {(r["tx_hash"], r["token"]) for r in q(db, "SELECT tx_hash, token FROM chain_trades_canonical WHERE chain='eth'")}
+    truth = [t for t in w.truth["trades"] if blk[t["tx"]] >= START and t["conf"] == "confirmed" and (t["tx"], t["token"]) in derived]
     assert set(pnl) == {t["wallet"] for t in truth}
     for wallet, res in pnl.items():
         for token in (fm.TOKA, fm.TOKB):
@@ -192,3 +226,37 @@ def test_wallet_pnl_uses_only_confirmed_trades_and_matches_truth(db):
             assert Decimal(str(st["bought_qty"])) == sum((t["qty"] for t in mine if t["side"] == "buy"), Decimal(0))
             assert Decimal(str(st["sold_qty"])) == sum((t["qty"] for t in mine if t["side"] == "sell"), Decimal(0))
         assert res["missing_marks"] == []
+
+
+@pytest.mark.parametrize("method", ["fifo", "average"])
+def test_wallet_pnl_equals_an_independent_reference_on_the_derived_ledgers(db, method):
+    """Same confirmed trades, two unrelated PnL implementations (Decimal lots vs exact Fractions per unit): realised / unknown-basis /
+    unrealised / fees must agree for every wallet."""
+    import sys
+    from fractions import Fraction as F
+    sys.path.insert(0, "tests")
+    from reference_pnl import ref_pnl
+    run_all(db)
+    pnl = pipeline.wallet_pnl(db, "eth", method=method)
+    rows = q(db, "SELECT * FROM chain_trades_canonical WHERE chain='eth' AND confidence='confirmed' ORDER BY block_number, id")
+    from math import gcd
+    unit = {}                                   # the reference keeps one cost per integer unit: use the largest common unit per token
+    for r in rows:
+        unit[r["token"]] = gcd(unit.get(r["token"], 0), abs(int(r["evidence"]["swap_net_raw"])))
+    marks = {r["token"]: F(str(r["price_usd"])) / 10 ** fm.DEC[r["token"]] * unit[r["token"]] for r in rows}   # per unit
+    per = {}
+    for r in rows:
+        per.setdefault(r["wallet"], []).append({"kind": r["side"], "tok": r["token"], "qty": abs(int(r["evidence"]["swap_net_raw"])) // unit[r["token"]],
+                                                "usd": F(str(r["usd"])), "fee": F(str(r["gas_usd"])), "cb": None})
+    assert per and set(per) == set(pnl)
+    tol = Decimal("1e-9")
+    checked_known = 0
+    for wallet, ops in per.items():
+        ref = ref_pnl(ops, {}, method, marks)
+        t = pnl[wallet]["totals"]
+        for key, ref_key in (("realized_pnl_usd", "realized"), ("unrealized_pnl_usd", "unrealized"),
+                             ("realized_unknown_basis_proceeds_usd", "unknown")):
+            want = Decimal(ref[ref_key].numerator) / Decimal(ref[ref_key].denominator)
+            assert abs(Decimal(str(t[key])) - want) <= tol * max(1, abs(want)), (wallet, key, t[key], want)
+        checked_known += t["closed_trades_fully_known"] > 0
+    assert checked_known >= 1                                              # at least one wallet really closed a trade with a known cost

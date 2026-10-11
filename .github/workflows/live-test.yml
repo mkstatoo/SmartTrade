@@ -43,7 +43,7 @@ jobs:
         continue-on-error: true
         env:
           MARKET_DISCOVERY_BLOCKS: ${{ vars.MARKET_DISCOVERY_BLOCKS || '300' }}
-          MARKET_WATCH_BLOCKS: ${{ vars.MARKET_WATCH_BLOCKS || '1500' }}
+          MARKET_WATCH_BLOCKS: ${{ vars.MARKET_WATCH_BLOCKS || '7200' }}
         run: python scripts/market_run.py
       - name: Publish reports to branch live-test-reports
         if: always()
