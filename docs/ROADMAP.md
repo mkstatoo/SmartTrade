@@ -64,6 +64,10 @@ Disabled until all methodology gates pass:
 - explicit user confirmation
 
 
+## Status after v0.4.5
+Done and run on real Ethereum data: pool discovery with factory verification, receipts, wallet attribution (`tx.from` + sender-delta confirmation), swap-derived USD pricing (validated against Chainlink and cross-pool prices), `balanceOf` state check, wallet PnL input. See `docs/WALLET_ATTRIBUTION.md` for numbers and limits.
+Next (user's order): Base, all pools, behaviour-based wallet selection (needs Base constants and a way to handle ~50% of swap txs that are bots/aggregators); a longer history so that sells have earlier buys; PnL comparison with an external tracker; a real reorg on a live chain.
+
 ## Status after v0.4.4
 Done as foundations (synthetic/fake-chain verified only): raw logs persistence with provenance, ERC-20 Transfer and Uniswap V2/V3 Swap decoding, reorg handling, realised PnL ledger, walk-forward harness, stale-price time exits, deployment/crash/restore tests.
 Next: run ingestion against a real provider; wallet attribution (tx.from / routers), token metadata/decimals, pool-to-token mapping, USD price source; PnL comparison with an external tracker on real wallets.

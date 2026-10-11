@@ -56,3 +56,10 @@
 - Deployment tests (own PostgreSQL cluster): upgrade-then-use, dump/restore, crash recovery, restart. CI installs server binaries first and uploads `PG_EVIDENCE.txt`.
 - Behaviour changes: all GET routes except `/health` need the key; `/health` no longer exposes config; stale-price exits exist; request/list size limits; invalid env config aborts start.
 
+
+
+## v0.4.5
+- Market layer and wallet attribution on a verified Uniswap V2/V3 watch-list (Ethereum): factory-verified pools, on-chain checked reference tokens, swap-derived USD prices with outlier filter, receipt-based `tx.from`, sender-delta confirmation, explicit skip reasons, PnL from confirmed trades only.
+- Migration 006 (six tables + canonical view); `JsonRpcSource.tx/receipt/call`; User-Agent header and error-body snippets in RPC errors.
+- Real-chain run script with independent checks; provider selection prefers private keyed endpoints; the job no longer looks green when nothing was verified.
+- Tests: 705 passing on PostgreSQL 16 (market, pipeline against ground truth, script runs against local mock nodes).

@@ -1,6 +1,14 @@
-# Smart Copy Trading v0.4.4
+# Smart Copy Trading v0.4.5
 
-Research/paper-only crypto wallet intelligence system. **Live execution is permanently disabled.** This version adds a raw on-chain ingestion foundation (logs with tx hash / block number / block hash), but it has **not been run against a real chain** (the build environment has no RPC access) and it does not yet attribute swaps to wallets or price them in USD.
+Research/paper-only crypto wallet intelligence system. **Live execution is permanently disabled.** Since v0.4.4 the raw on-chain layer has been run on real Ethereum and Base data (GitHub Actions, see `docs/LIVE_TEST_2026-10-11.md`); v0.4.5 adds wallet attribution and USD pricing for a verified watch-list of Uniswap V2/V3 pools on Ethereum (`docs/WALLET_ATTRIBUTION.md`). Not yet done: Base attribution, behaviour-based wallet selection, comparison with an external PnL tracker, a real reorg observed on a live chain.
+
+## What v0.4.5 adds
+- **Market layer** (`app/chain/market.py`): pools are accepted only if the Uniswap factory itself returns the same pool address for its tokens; reference tokens (WETH, USDC, USDT, DAI) are re-checked on-chain (symbol, decimals) at run time; USD value comes from execution prices of the swaps themselves (stables = 1 USD, ETH from WETH/stable swaps with an outlier filter). Chainlink is used only as an independent cross-check.
+- **Attribution pipeline** (`app/chain/pipeline.py`): `discover_pools` (rank, verify, top-K by USD volume + ETH reference pools) -> `collect_txs` (receipts: `tx.from`, `tx.to`, status, gas, ERC-20 transfers; cross-checked against the stored `eth_getLogs` view) -> `derive_trades` (wallet = `tx.from`; a trade is `confirmed` only when the sender's own Transfer delta matches the priced swap flow within 2%, `mismatch` otherwise; everything else is stored in `chain_trade_skips` with a reason) -> `wallet_pnl` (confirmed trades into `app.pnl`).
+- **Migration 006** (`chain_tokens`, `chain_pools`, `chain_txs`, `chain_transfers`, `chain_trades`, `chain_trade_skips`, view `chain_trades_canonical`); fresh schema equals migrated schema from every baseline.
+- **Real-run script** `scripts/market_run.py` (+ workflow step): independent checks of ETH price vs Chainlink, receipts and `tx.from` re-fetched through a second provider, `balanceOf` state before/after the block vs the log-based delta, cross-pool price consistency, attribution rates. Endpoint URLs and hosts never reach the reports.
+- Provider selection now prefers keyed private endpoints as primary (public gateways rate-limit during long runs).
+- Tests: a synthetic world with hidden true prices and ground-truth trades (direct, router with fee, relayer, two-hop, arbitrage, quote-for-quote, impostor pool, manipulated ETH print); 23 mutation checks.
 
 ## What v0.4.4 adds
 - **Engine safety**: *every* route except `GET /health` needs `X-Research-Key` (constant-time compare; 10 failures / 60 s per client -> `429`); `/health` is minimal (status/mode/live_execution); `GET /status` (auth) shows store connectivity; OpenAPI/docs are disabled; request bodies are capped (32 MiB, `413`) and list sizes bounded. `GET /config` returns the effective config, its SHA-256 and which whitelisted env overrides were applied; invalid values stop the process at start (`ConfigError`). `live_execution` can never be `True`.
@@ -19,7 +27,7 @@ Research/paper-only crypto wallet intelligence system. **Live execution is perma
 
 ## What v0.4.2 added
 - **Durable state**: portfolio, positions, price book, cooldowns, bars, signals, fills and closed trades live in PostgreSQL (row-locked unit of work; safe across restarts and several workers). No database configured => the API refuses to start (`STORE_BACKEND=memory` is an explicit throw-away opt-in).
-- **Migration runner** `python -m app.migrate`: empty DB -> `schema.sql`; v0.3 -> 001..005; v0.4/v0.4.1 -> 002..005; v0.4.2 -> 004..005; v0.4.3 -> 005; repeat runs are no-ops; legacy rows that violate new constraints go to `legacy_quarantine` (nothing silently dropped).
+- **Migration runner** `python -m app.migrate`: empty DB -> `schema.sql`; v0.3 -> 001..006; v0.4/v0.4.1 -> 002..006; v0.4.2 -> 004..006; v0.4.3 -> 005..006; v0.4.4 -> 006; repeat runs are no-ops; legacy rows that violate new constraints go to `legacy_quarantine` (nothing silently dropped).
 - Paper engine fixes found in the v0.4.1 review (see `docs/REVIEW_REPORT_V042.md`).
 
 ## Run

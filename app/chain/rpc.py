@@ -14,7 +14,7 @@ from urllib.parse import urlsplit
 HEX32 = re.compile(r"^0x[0-9a-fA-F]{64}$")
 HEX20 = re.compile(r"^0x[0-9a-fA-F]{40}$")
 MAX_RESPONSE_BYTES = 64 * 1024 * 1024
-USER_AGENT = "smart-copy-trading-research/0.4.4 (+https://github.com/mkstatoo/SmartTrade)"   # many gateways reject the default Python agent with 403
+USER_AGENT = "smart-copy-trading-research/0.4.5 (+https://github.com/mkstatoo/SmartTrade)"   # many gateways reject the default Python agent with 403
 
 
 def _snippet(raw) -> str:
