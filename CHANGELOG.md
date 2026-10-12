@@ -63,3 +63,4 @@
 - Migration 006 (six tables + canonical view); `JsonRpcSource.tx/receipt/call`; User-Agent header and error-body snippets in RPC errors.
 - Real-chain run script with independent checks; provider selection prefers private keyed endpoints; the job no longer looks green when nothing was verified.
 - Tests: 705 passing on PostgreSQL 16 (market, pipeline against ground truth, script runs against local mock nodes).
+- Review round: causal ETH price series (`no_eth_price` instead of a later price), causal outlier filter, gas kept on a confirmed trade, regression tests (future shock cannot change past trades; gas allocation), PnL differential test against `tests/reference_pnl.py`, staged receipt collection for the state check, progressive run reports, 12-hour real run with a first PnL overview.

@@ -24,7 +24,32 @@ All numbers below are measurements of ONE real run (GitHub Actions job `live-cha
 | same token, same 20-block bucket, two different pools: price deviation | median 0.08%, p90 0.43%, max 1.40% (79 buckets, 5 tokens) |
 | PnL | 403 closed trades, only 36 with a known cost; 559,816 USD of sells have an unknown basis |
 
-A smaller earlier run (300 blocks) gave the same picture (1,087 confirmed of 1,099; Chainlink median 0.03%; state check 60/60).
+The tables above come from the run with the earlier (non-causal) outlier filter. A smaller earlier run (300 blocks) gave the same picture (1,087 confirmed of 1,099; Chainlink median 0.03%; state check 60/60).
+
+## Final version: causal pricing and the ~13-hour run with profit and loss
+Review points applied before this run: (1) the ETH price is strictly causal (see Method; nothing later can reach an earlier moment, proven by a regression test that shocks ETH by +60% after a block and shows every earlier trade is byte-identical), (2) gas stays on a confirmed trade, (3) PnL was checked against an independent exact-fraction implementation on the derived ledgers (FIFO and average cost agree for every wallet).
+
+Run: Ethereum blocks 26,168,191-26,172,090 (300 discovery + 3,600 watch, about 13 hours), job `live-chain-test` on 2026-10-11. The report file of this run was later overwritten by a failed re-run (see below), so the figures here were copied from the job output at the time.
+
+| item | result |
+|---|---|
+| receipts stored / errors / disagreeing with `eth_getLogs` | 29,291 / 0 / 0 |
+| trades | 5,421: 5,196 confirmed (95.9%), 225 mismatch |
+| skipped (tx level reasons) | `quote_only` 19,468, `no_sender_transfer` 6,346, `zero_net_flow` 128 |
+| non-quote swap txs that became a trade | 55.2% |
+| wallets seen / with a confirmed trade | 1,843 / 1,712 |
+| ETH price points (causal) / dropped as outliers | 12,704 / 4 |
+| Chainlink cross-check, second-provider re-fetch of receipts and `tx.from` | pass, pass |
+| same token, two pools, same 20-block bucket | 169 buckets, 3 tokens: median 0.09%, p90 0.31%, max 2.10% |
+| `balanceOf` state check | not done in this run (only 1 trade was still inside the node's recent-state window after the slow receipt stage); earlier 1,800-block runs: 60/60 and 58/60 exact. The code now fetches the last 80 blocks first so the check can run; that change is only tested on mock nodes |
+
+**Profit and loss (confirmed trades only, FIFO, execution price, gas included, cost basis only from trades inside the window):**
+- 1,887 closed trades in total, but only **642 (199 wallets) have a known cost**; the rest sold tokens bought before the window, their proceeds are reported separately and never turned into profit or loss.
+- On those 642: win rate 44.4%, realised result +101,865 USD in total (sum over wallets, dominated by a few wallets with one large trade each).
+- Unrealised result of all wallets is +447,728 USD but it is marked at the LAST execution price seen in the window, which in thin meme-token pools is not a price one could sell at: indicative only.
+- Typical pattern: wallets with 20+ closed trades, 0 wins and a result of about -8 USD are bots round-tripping dust and paying gas; wallets with +500 to +1,300 USD have one closed trade each. **None of this is evidence of skill; a single window cannot rank wallets.**
+
+A re-run of the same job to repeat the state check failed in `ingest_watch` with HTTP 429 `daily request limit reached` from the public gateway that was chosen as primary (both keyed endpoints were already refused by the probe because of their per-second limits). It is a provider quota problem; nothing in the data or code was at fault.
 
 ## What this does NOT show
 - About half of the swap transactions are not attributable: the transaction sender is not the owner of the tokens (bots, private contracts, some aggregators). `tx_targets` in `reports/market_run.json` lists the most frequent targets; those that appear only among unattributed transactions are private contracts. Attributing them would need contract-owner resolution, not done.

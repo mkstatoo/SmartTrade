@@ -8,6 +8,7 @@ Research/paper-only crypto wallet intelligence system. **Live execution is perma
 - **Migration 006** (`chain_tokens`, `chain_pools`, `chain_txs`, `chain_transfers`, `chain_trades`, `chain_trade_skips`, view `chain_trades_canonical`); fresh schema equals migrated schema from every baseline.
 - **Real-run script** `scripts/market_run.py` (+ workflow step): independent checks of ETH price vs Chainlink, receipts and `tx.from` re-fetched through a second provider, `balanceOf` state before/after the block vs the log-based delta, cross-pool price consistency, attribution rates. Endpoint URLs and hosts never reach the reports.
 - Provider selection now prefers keyed private endpoints as primary (public gateways rate-limit during long runs).
+- **Causal pricing and PnL** (final review round): the ETH price at any moment uses only earlier swaps (none yet -> trade skipped as `no_eth_price`); outliers are judged against earlier prints only; gas of a transaction stays on its first confirmed trade; wallet PnL is cross-checked against an independent exact implementation. First real profit/loss overview in `docs/WALLET_ATTRIBUTION.md` (a pipeline check, not a wallet ranking).
 - Tests: a synthetic world with hidden true prices and ground-truth trades (direct, router with fee, relayer, two-hop, arbitrage, quote-for-quote, impostor pool, manipulated ETH print); 23 mutation checks.
 
 ## What v0.4.4 adds
