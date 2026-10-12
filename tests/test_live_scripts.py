@@ -201,9 +201,8 @@ def test_market_run_flags_a_node_whose_state_contradicts_the_logs(tmp_path):
             s.close()
 
 
-def test_private_keyed_endpoint_is_preferred_as_primary_over_a_wider_public_one(tmp_path):
+def test_equal_range_prefers_private_endpoint_and_wider_range_still_wins(tmp_path):
     pub, priv = FakeChain(700, salt="x", logs_at=logs()), FakeChain(700, salt="x", logs_at=logs())
-    priv.max_range = 50
     sp, sq = Server(pub), Server(priv)
     cfg = {"chains": {"ethereum": {"chain_id": 1, "providers": [{"name": "pub", "url": sp.url}]}}}
     (tmp_path / "p.json").write_text(json.dumps(cfg))
@@ -211,7 +210,9 @@ def test_private_keyed_endpoint_is_preferred_as_primary_over_a_wider_public_one(
         r = run("provider_probe.py", {"PROVIDERS_FILE": str(tmp_path / "p.json"), "RPC_ETHEREUM_1": sq.url}, tmp_path)
         assert r.returncode == 0, r.stdout + r.stderr
         sel = json.loads((tmp_path / "selection.json").read_text())["ethereum"]
-        assert sel["primary"] == "private-1" and sel["verifier"] == "pub", sel
-        assert sel["ranges"]["pub"] > sel["ranges"]["private-1"]
+        assert sel["primary"] == "private-1" and sel["verifier"] == "pub", sel          # equal ranges: private first
+        priv.max_range = 50                                                              # now the public one is wider
+        r = run("provider_probe.py", {"PROVIDERS_FILE": str(tmp_path / "p.json"), "RPC_ETHEREUM_1": sq.url}, tmp_path)
+        assert json.loads((tmp_path / "selection.json").read_text())["ethereum"]["primary"] == "pub"
     finally:
         sp.close(); sq.close()

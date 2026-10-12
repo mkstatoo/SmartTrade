@@ -24,7 +24,7 @@ from psycopg.rows import dict_row  # noqa: E402
 
 from app.chain import abi, market, pipeline  # noqa: E402
 from app.chain.ingest import ingest  # noqa: E402
-from app.chain.rpc import JsonRpcSource, RpcError  # noqa: E402
+from app.chain.rpc import FailoverSource, JsonRpcSource, RpcError  # noqa: E402
 from app.migrate import migrate  # noqa: E402
 
 CHAIN = "ethereum"
@@ -304,8 +304,11 @@ def main():
     dsn = os.environ["DATABASE_URL"]
     migrate(dsn)
     cfg = market.CHAINS[CHAIN]
-    prim_url = url_for(cfg_p, CHAIN, sel["primary"])
-    prim = JsonRpcSource(prim_url, timeout=30, retries=3, backoff=1.0)
+    # primary first, then the other ranked providers (the verifier stays last so the second-provider check keeps its independence)
+    order = [sel["primary"]] + [n for n in sel.get("ranked", []) if n not in (sel["primary"], sel.get("verifier"))] + ([sel["verifier"]] if sel.get("verifier") else [])
+    urls = {n: url_for(cfg_p, CHAIN, n) for n in order}
+    prim_url = urls[sel["primary"]]
+    prim = FailoverSource([JsonRpcSource(urls[n], timeout=30, retries=3, backoff=1.0) for n in order], labels=order)
     ver = JsonRpcSource(url_for(cfg_p, CHAIN, sel["verifier"]), timeout=30, retries=3, backoff=1.0) if sel.get("verifier") else None
     rng_primary = sel.get("ranges", {}).get(sel["primary"], 1)
     batch = max(1, min(50, rng_primary))
@@ -345,7 +348,7 @@ def main():
                          "min": float(min(p[1] for p in series.pts)) if series.pts else None, "max": float(max(p[1] for p in series.pts)) if series.pts else None}
     rep["chainlink"] = step(rep, "chainlink_check", lambda: chainlink_check(prim, cfg, series, prim.head())) or {"status": "error"}
 
-    mk = lambda: JsonRpcSource(prim_url, timeout=30, retries=3, backoff=1.0)  # noqa: E731
+    mk = lambda: FailoverSource([JsonRpcSource(urls[n], timeout=30, retries=3, backoff=1.0) for n in order], labels=order)  # noqa: E731
     # tail of the window first: the balance-state check only works while the node still serves state for those blocks
     tail = step(rep, "collect_tail_receipts", lambda: pipeline.collect_txs(dsn, mk, LABEL, workers=WORKERS, since_block=last - 80))
     if tail is not None and step(rep, "derive_tail", lambda: pipeline.derive_trades(dsn, LABEL, cfg)) is not None:

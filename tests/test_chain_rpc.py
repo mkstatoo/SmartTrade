@@ -179,3 +179,50 @@ def test_sends_an_identifying_user_agent_and_error_body_snippet(srv):
     s2 = srv(ch, {1: 403})
     with pytest.raises(RpcError, match="HTTP 403"):
         src(s2.url, retries=0).head()
+
+
+def _quota(body):
+    return json.dumps({"jsonrpc": "2.0", "id": body["id"], "error": {"code": -32003, "message": "daily request limit reached"}}).encode()
+
+
+def _always(fn):
+    class D(dict):
+        def get(self, k, d=None): return fn
+    return D(x=1)  # non-empty: the server replaces a falsy script by {}
+
+
+def test_failover_switches_on_quota_and_results_match(srv):
+    from app.chain.rpc import FailoverSource
+    ch = FakeChain(10, logs_at={4: [transfer_log(addr(9), addr(1), addr(2), 5)]})
+    a, b = srv(ch, _always(_quota)), srv(ch)
+    f = FailoverSource([src(a.url), src(b.url)], labels=["a", "b"])
+    assert f.head() == src(b.url).head() == 9
+    assert f.current_label == "b" and f.exhausted == {0}
+    assert len(f.switches) == 1 and "a -> b" in f.switches[0]
+    assert "SECRET" not in " ".join(f.switches) and "SECRET" not in f.source
+    assert f.logs(0, 9) == src(b.url).logs(0, 9)
+    n = a.n
+    f.head()
+    assert a.n == n  # the exhausted provider is not tried again
+
+
+def test_failover_all_exhausted_raises(srv):
+    from app.chain.rpc import FailoverSource
+    ch = FakeChain(5)
+    f = FailoverSource([src(srv(ch, _always(_quota)).url), src(srv(ch, _always(_quota)).url)], labels=["a", "b"])
+    with pytest.raises(RpcError, match="daily request limit"):
+        f.head()
+    assert f.exhausted == {0, 1}
+
+
+def test_failover_ignores_non_quota_errors(srv):
+    from app.chain.rpc import FailoverSource
+
+    def bad(body):
+        return json.dumps({"jsonrpc": "2.0", "id": body["id"], "error": {"code": -32005, "message": "query returned more than 10000 results"}}).encode()
+    ch = FakeChain(5)
+    b = srv(ch)
+    f = FailoverSource([src(srv(ch, _always(bad)).url), src(b.url)], labels=["a", "b"])
+    with pytest.raises(RpcError, match="more than 10000"):
+        f.head()
+    assert f.switches == [] and b.n == 0 and f.current_label == "a"

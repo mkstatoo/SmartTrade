@@ -175,3 +175,57 @@ class JsonRpcSource:
         if not isinstance(r, str) or not re.fullmatch(r"0x([0-9a-fA-F]{2})*", r):
             raise RpcError("malformed eth_call result")
         return r.lower()
+
+
+QUOTA_PATTERNS = ("daily request limit", "request limit reached", "rate limit", "too many requests", "http 429", "quota", "capacity exceeded",
+                  "upgrade your plan", "monthly request")
+
+
+def _is_quota_error(exc: Exception) -> bool:
+    m = str(exc).lower()
+    return any(p in m for p in QUOTA_PATTERNS)
+
+
+class FailoverSource:
+    """The same interface as JsonRpcSource over several providers of the SAME chain. When the current provider refuses with a quota /
+    rate-limit error (free plans run out), the call is repeated on the next provider; other errors (range limits, bad data) are not
+    failover reasons and propagate. `source` is the label of the provider that served the last call; `switches` lists every switch
+    (labels only, never URLs). Raises the last quota error when every provider is exhausted."""
+
+    def __init__(self, sources, labels=None):
+        if not sources:
+            raise ValueError("need at least one source")
+        self._s, self._i = list(sources), 0
+        self.labels = list(labels) if labels else [s.source for s in self._s]
+        self.exhausted: set[int] = set()
+        self.switches: list[str] = []
+
+    @property
+    def source(self) -> str:
+        return self._s[self._i].source
+
+    @property
+    def current_label(self) -> str:
+        return self.labels[self._i]
+
+    def _do(self, name, *args, **kw):
+        while True:
+            try:
+                return getattr(self._s[self._i], name)(*args, **kw)
+            except RpcError as exc:
+                if not _is_quota_error(exc):
+                    raise
+                self.exhausted.add(self._i)
+                nxt = next((j for j in range(len(self._s)) if j not in self.exhausted), None)
+                if nxt is None:
+                    raise
+                self.switches.append(f"{self.labels[self._i]} -> {self.labels[nxt]}: {str(exc)[:60]}")
+                self._i = nxt
+
+    def head(self): return self._do("head")
+    def block(self, n): return self._do("block", n)
+    def logs(self, a, b, topics0=None, addresses=None): return self._do("logs", a, b, topics0, addresses)
+    def tx(self, h): return self._do("tx", h)
+    def receipt(self, h): return self._do("receipt", h)
+    def call(self, to, data, block=None): return self._do("call", to, data, block)
+    def _call(self, method, params): return self._do("_call", method, params)

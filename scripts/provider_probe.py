@@ -134,8 +134,8 @@ def score(r):
         return -1
     if r.get("agrees_with_majority") is None and "agreement_block_window" in r:
         return -1                                          # could not be checked against the others: not trusted
-    # keyed private endpoints first: public gateways pass a 30-request burst but rate-limit (HTTP 429) during sustained ingestion
-    return (r["provider"].startswith("private-"), r["max_log_range_blocks"], -(r.get("burst_30_errors") or 0), -(r.get("latency_p95_ms") or 10**9))
+    # widest getLogs range first; at equal range a keyed private endpoint wins. Quota exhaustion is handled by FailoverSource at run time.
+    return (r["max_log_range_blocks"], r["provider"].startswith("private-"), -(r.get("burst_30_errors") or 0), -(r.get("latency_p95_ms") or 10**9))
 
 
 def main():
