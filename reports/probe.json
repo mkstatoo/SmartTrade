@@ -1,0 +1,292 @@
+{
+ "at_utc": "2026-10-12 20:24:47",
+ "results": [
+  {
+   "chain": "ethereum",
+   "provider": "publicnode",
+   "ok": true,
+   "errors": [],
+   "host": "https://ethereum-rpc.publicnode.com",
+   "head": 26178761,
+   "latency_p50_ms": 197,
+   "latency_p95_ms": 250,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 0.4,
+     "logs": 220,
+     "error": null
+    },
+    "10": {
+     "ok": false,
+     "seconds": 0.18,
+     "logs": null,
+     "error": "RpcError: Please specify an address in your request or, to remove restrictions, order a dedicated full node here: https://www.alln"
+    }
+   },
+   "max_log_range_blocks": 1,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   },
+   "agreement_block_window": [
+    26178661,
+    26178663
+   ],
+   "agrees_with_majority": true,
+   "agreement_log_count": 2635
+  },
+  {
+   "chain": "ethereum",
+   "provider": "llamarpc",
+   "ok": false,
+   "errors": [
+    "RpcError: HTTP 525: {\"type\":\"https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-5xx-"
+   ],
+   "host": "https://eth.llamarpc.com"
+  },
+  {
+   "chain": "ethereum",
+   "provider": "cloudflare",
+   "ok": false,
+   "errors": [
+    "RpcError: Cannot fulfill request"
+   ],
+   "host": "https://cloudflare-eth.com"
+  },
+  {
+   "chain": "ethereum",
+   "provider": "ankr",
+   "ok": false,
+   "errors": [
+    "RpcError: malformed or mismatched JSON-RPC response: {\"jsonrpc\": \"2.0\", \"error\": {\"code\": -32000, \"message\": \"Unauthorized: You mu"
+   ],
+   "host": "https://rpc.ankr.com"
+  },
+  {
+   "chain": "ethereum",
+   "provider": "drpc",
+   "ok": true,
+   "errors": [],
+   "host": "https://eth.drpc.org",
+   "head": 26178762,
+   "latency_p50_ms": 187,
+   "latency_p95_ms": 226,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 0.35,
+     "logs": 230,
+     "error": null
+    },
+    "10": {
+     "ok": true,
+     "seconds": 0.91,
+     "logs": 10722,
+     "error": null
+    },
+    "100": {
+     "ok": false,
+     "seconds": 0.31,
+     "logs": null,
+     "error": "RpcError: query exceeds max results 20000, retry with the range 26178262-26178290"
+    }
+   },
+   "max_log_range_blocks": 10,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   },
+   "agreement_block_window": [
+    26178661,
+    26178663
+   ],
+   "agrees_with_majority": true,
+   "agreement_log_count": 2635
+  },
+  {
+   "chain": "ethereum",
+   "provider": "1rpc",
+   "ok": false,
+   "errors": [
+    "RpcError: HTTP 502: {\"type\":\"https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-5xx-"
+   ],
+   "host": "https://1rpc.io"
+  },
+  {
+   "chain": "ethereum",
+   "provider": "private-1",
+   "ok": false,
+   "errors": [
+    "RpcError: HTTP 429: {\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32003,\"message\":\"daily request limit reached - upgrade your"
+   ],
+   "host": "(secret)"
+  },
+  {
+   "chain": "ethereum",
+   "provider": "private-2",
+   "ok": true,
+   "errors": [],
+   "host": "(secret)",
+   "head": 26178764,
+   "latency_p50_ms": 65,
+   "latency_p95_ms": 73,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 0.24,
+     "logs": 868,
+     "error": null
+    },
+    "10": {
+     "ok": false,
+     "seconds": 0.06,
+     "logs": null,
+     "error": "RpcError: HTTP 413: {\"jsonrpc\":\"2.0\",\"id\":54,\"error\":{\"code\":-32615,\"message\":\"eth_getLogs is limited to a 5 range, upgr"
+    }
+   },
+   "max_log_range_blocks": 1,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   },
+   "agreement_block_window": [
+    26178661,
+    26178663
+   ],
+   "agrees_with_majority": true,
+   "agreement_log_count": 2635
+  },
+  {
+   "chain": "base",
+   "provider": "base-official",
+   "ok": false,
+   "errors": [],
+   "host": "https://mainnet.base.org",
+   "head": 52523654,
+   "latency_p50_ms": 87,
+   "latency_p95_ms": 95,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": false,
+     "seconds": 0.09,
+     "logs": null,
+     "error": "RpcError: HTTP 429: {\"jsonrpc\":\"2.0\",\"id\":53,\"error\":{\"code\":-32011,\"message\":\"request limit reached\"}}"
+    }
+   },
+   "max_log_range_blocks": 0,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   }
+  },
+  {
+   "chain": "base",
+   "provider": "publicnode",
+   "ok": true,
+   "errors": [],
+   "host": "https://base-rpc.publicnode.com",
+   "head": 52523656,
+   "latency_p50_ms": 192,
+   "latency_p95_ms": 219,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 0.26,
+     "logs": 224,
+     "error": null
+    },
+    "10": {
+     "ok": false,
+     "seconds": 0.19,
+     "logs": null,
+     "error": "RpcError: Please specify an address in your request or, to remove restrictions, order a dedicated full node here: https://www.alln"
+    }
+   },
+   "max_log_range_blocks": 1,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   }
+  },
+  {
+   "chain": "base",
+   "provider": "llamarpc",
+   "ok": false,
+   "errors": [
+    "RpcError: HTTP 525: {\"type\":\"https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-5xx-"
+   ],
+   "host": "https://base.llamarpc.com"
+  },
+  {
+   "chain": "base",
+   "provider": "ankr",
+   "ok": false,
+   "errors": [
+    "RpcError: malformed or mismatched JSON-RPC response: {\"jsonrpc\": \"2.0\", \"error\": {\"code\": -32000, \"message\": \"Unauthorized: You mu"
+   ],
+   "host": "https://rpc.ankr.com"
+  },
+  {
+   "chain": "base",
+   "provider": "drpc",
+   "ok": false,
+   "errors": [
+    "headers: RpcError: HTTP 429: {\"id\":43,\"jsonrpc\":\"2.0\",\"error\":{\"message\":\"You reached Public endpoint rate limit, please upgrade "
+   ],
+   "host": "https://base.drpc.org",
+   "head": 52523663,
+   "latency_p50_ms": 202,
+   "latency_p95_ms": 246,
+   "burst_30_errors": 14,
+   "headers_linked": false,
+   "logs_by_range": {
+    "1": {
+     "ok": false,
+     "seconds": 0.18,
+     "logs": null,
+     "error": "RpcError: HTTP 429: {\"id\":44,\"jsonrpc\":\"2.0\",\"error\":{\"message\":\"You reached Public endpoint rate limit, please upgrade "
+    }
+   },
+   "max_log_range_blocks": 0,
+   "block_depth_ok": {
+    "10000": false,
+    "100000": false,
+    "1000000": false
+   }
+  },
+  {
+   "chain": "base",
+   "provider": "1rpc",
+   "ok": false,
+   "errors": [
+    "RpcError: HTTP 429: {\"jsonrpc\": \"2.0\", \"id\": null, \"error\": {\"code\": -32005, \"message\": \"Rate limit exceeded on Nodies p"
+   ],
+   "host": "https://1rpc.io"
+  },
+  {
+   "chain": "base",
+   "provider": "private-1",
+   "ok": false,
+   "errors": [
+    "RpcError: HTTP 402: Out of CU"
+   ],
+   "host": "(secret)"
+  }
+ ]
+}
