@@ -226,3 +226,9 @@ def test_failover_ignores_non_quota_errors(srv):
     with pytest.raises(RpcError, match="more than 10000"):
         f.head()
     assert f.switches == [] and b.n == 0 and f.current_label == "a"
+
+
+def test_refusal_of_archive_data_counts_as_a_failover_reason():
+    from app.chain.rpc import _is_quota_error
+    assert _is_quota_error(RpcError("HTTP 403: Archive requests require a personal token"))
+    assert not _is_quota_error(RpcError("query returned more than 10000 results"))

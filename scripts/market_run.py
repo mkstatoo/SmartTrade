@@ -40,6 +40,8 @@ RECEIPT_LIMIT = int(os.getenv("MARKET_RECEIPT_LIMIT", "150000"))
 CANDIDATES = int(os.getenv("MARKET_CANDIDATES", "300"))
 SAMPLE = int(os.getenv("MARKET_VERIFY_SAMPLE", "50"))
 WORKERS = int(os.getenv("MARKET_WORKERS", "4"))
+# the independent verifier is usually a non-archive public node: it only serves recent receipts, so the sample is drawn from the newest blocks
+VERIFY_RECENT_BLOCKS = int(os.getenv("MARKET_VERIFY_RECENT_BLOCKS", "100"))
 
 
 def url_for(cfg, chain, name):
@@ -105,7 +107,8 @@ def chainlink_check(rpc, cfg, series, head):
 def verify_with_second_provider(ver, dsn, chain, tokens):
     rows = q(dsn, "SELECT x.tx_hash, x.from_addr, x.status, x.gas_used, x.block_hash FROM chain_txs x "
                   "JOIN chain_blocks b ON b.chain=x.chain AND b.block_hash=x.block_hash AND b.canonical WHERE x.chain=%s "
-                  "ORDER BY md5(x.tx_hash) LIMIT %s", chain, SAMPLE)
+                  "AND x.block_number >= (SELECT max(block_number) FROM chain_txs WHERE chain=%s) - %s "
+                  "ORDER BY md5(x.tx_hash) LIMIT %s", chain, chain, VERIFY_RECENT_BLOCKS, SAMPLE)
     bad, errors = [], 0
     for r in rows:
         try:
@@ -123,7 +126,9 @@ def verify_with_second_provider(ver, dsn, chain, tokens):
                     theirs[(l["log_index"], l["address"], d[1]["from"], d[1]["to"], int(d[1]["amount"]))] += 1
         if (rc["from"], rc["status"], rc["gas_used"], rc["block_hash"]) != (r["from_addr"], r["status"], int(r["gas_used"]), r["block_hash"]) or stored != theirs:
             bad.append(r["tx_hash"][:14])
-    trades = q(dsn, "SELECT tx_hash, wallet FROM chain_trades_canonical WHERE chain=%s AND confidence='confirmed' ORDER BY md5(tx_hash || token) LIMIT %s", chain, SAMPLE)
+    trades = q(dsn, "SELECT tx_hash, wallet FROM chain_trades_canonical WHERE chain=%s AND confidence='confirmed' "
+                  "AND block_number >= (SELECT max(block_number) FROM chain_txs WHERE chain=%s) - %s ORDER BY md5(tx_hash || token) LIMIT %s",
+                  chain, chain, VERIFY_RECENT_BLOCKS, SAMPLE)
     bad_from, from_err = [], 0
     for t in trades:
         try:

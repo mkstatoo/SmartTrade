@@ -179,7 +179,8 @@ class JsonRpcSource:
 
 
 QUOTA_PATTERNS = ("daily request limit", "request limit reached", "rate limit", "too many requests", "http 429", "quota", "capacity exceeded",
-                  "upgrade your plan", "monthly request")
+                  "upgrade your plan", "monthly request",
+                  "archive requests require", "personal token")      # providers that refuse old blocks on their free tier: try the next provider
 
 
 def _is_quota_error(exc: Exception) -> bool:
