@@ -82,3 +82,16 @@ passing on Base. Balance-state check: unavailable. Gas now includes the L1 data 
 Run 2 could not start discovery: the free private endpoint answered "HTTP 402 Out of CU" (credits spent by run 1). Base therefore has NO fully passing real run yet.
 The Base step is now opt-in (repository variable RUN_BASE_SMOKE=true). The 5.9 % of Base receipts that could not be fetched are a coverage loss, not a measured result.
 Ethereum rerun after the fixes: all integrity checks pass, second-provider 50/50; balance-state check was "unavailable" (0 candidates) this time, unlike the 19/19 run before.
+
+## Run of 2026-10-12 evening (commit "larger fresh tail…") — real Ethereum, all checks pass incl. balance state
+29 720 receipts (0 errors), 9 171 trades (8 896 confirmed). Chainlink pass, second provider 50/50, cross-pool deviation median 0.076 % / max 0.52 %.
+**Balance-state check: 60 of 60 exact (pass)**. It was "unavailable" in two earlier runs because the run is long and the blocks that were recent at the start
+were no longer served by the node when the check ran; the window is now extended to the current head right before the check (`ingest_fresh_tail`).
+**Volume-weighted attribution** (new `volume_coverage`): of 43.3 M USD traded in the watched pools only **29.0 %** sits in transactions with a known wallet;
+53.0 % is skipped as `no_sender_transfer`, 16.6 % is quote-only (stable/ETH legs), 1.4 % `zero_net_flow`. Counting transactions (61 %) overstates coverage.
+Who ends up with the token in unattributed txs (sample 300): contract ~62 %, no final recipient ~33 %, EOA ~5 % → bots/aggregators/vault flows. No relayer
+attribution rule is justified by this, so none was added; wallets we do attribute are the ones that trade from their own address, which is NOT a random sample of traders.
+**PnL overview is not stable between runs and must not be read as a ranking**: this run 44 wallets with a known-cost closed trade, win rate 2.7 %, unrealized −0.93 M USD;
+the earlier run (different window) 471 wallets, win rate 50.4 %, unrealized +3.5 M USD. Marks are last execution prices over a window of a few hours; a few illiquid tokens dominate.
+Operational notes: free-plan providers answer HTTP 408/402/429/403(archive) under load; all of these now retry or fail over; a skipped Base step no longer loses the other reports
+(publish step adds each file separately).

@@ -73,3 +73,4 @@
 ## 0.4.6
 - Migration 007: `chain_txs.l1_fee`; receipts parse `l1Fee` (OP-stack); gas cost = gasUsed*effectiveGasPrice + l1Fee (test with a non-zero L1 fee).
 - `market.CHAINS["base"]` (addresses written from memory; verified on-chain at run time, a wrong address shows up as a failed check) and `MARKET_CHAIN` switch in market_run (reports `market_run_base.*`); workflow smoke step for Base (600+1800 blocks).
+- 0.4.6: `ingest_fresh_tail` + state check 60/60 on real data; `volume_coverage`; HTTP 408 retried; workflow publishes reports file by file.
