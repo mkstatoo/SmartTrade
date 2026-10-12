@@ -40,7 +40,7 @@ RECEIPT_LIMIT = int(os.getenv("MARKET_RECEIPT_LIMIT", "150000"))
 CANDIDATES = int(os.getenv("MARKET_CANDIDATES", "300"))
 SAMPLE = int(os.getenv("MARKET_VERIFY_SAMPLE", "50"))
 WORKERS = int(os.getenv("MARKET_WORKERS", "4"))
-FRESH_TAIL = int(os.getenv("MARKET_FRESH_TAIL_BLOCKS", "40"))
+FRESH_TAIL = int(os.getenv("MARKET_FRESH_TAIL_BLOCKS", "120"))
 # the independent verifier is usually a non-archive public node: it only serves recent receipts, so the sample is drawn from the newest blocks
 VERIFY_RECENT_BLOCKS = int(os.getenv("MARKET_VERIFY_RECENT_BLOCKS", "100"))
 
@@ -193,7 +193,7 @@ def state_check(rpc, dsn, chain):
     Transfer delta used for attribution. A node only serves state for recent blocks; if it does not, the result is 'unavailable'."""
     head = rpc.head()
     rows = q(dsn, "SELECT wallet, token, block_number, tx_hash, evidence FROM chain_trades_canonical WHERE chain=%s AND confidence='confirmed' "
-                  "AND block_number >= %s ORDER BY md5(tx_hash || token) LIMIT 60", chain, head - 100)
+                  "AND block_number >= %s ORDER BY md5(tx_hash || token) LIMIT 60", chain, head - 110)
     out = {"candidates": len(rows), "checked": 0, "exact_match": 0, "unavailable": 0, "mismatches": []}
     for r in rows:
         data = market.calldata(market.SEL["balanceOf"], r["wallet"])
@@ -391,7 +391,7 @@ def main():
 
     mk = lambda: FailoverSource([JsonRpcSource(urls[n], timeout=30, retries=6, backoff=1.0) for n in order], labels=order)  # noqa: E731
     # tail of the window first: the balance-state check only works while the node still serves state for those blocks
-    tail = step(rep, "collect_tail_receipts", lambda: pipeline.collect_txs(dsn, mk, LABEL, workers=WORKERS, since_block=last - 60))
+    tail = step(rep, "collect_tail_receipts", lambda: pipeline.collect_txs(dsn, mk, LABEL, workers=WORKERS, since_block=last - 90))
     if tail is not None and step(rep, "derive_tail", lambda: pipeline.derive_trades(dsn, LABEL, cfg)) is not None:
         rep["state_check"] = step(rep, "state_check", lambda: state_check(prim, dsn, LABEL)) or {"status": "error"}
     col = step(rep, "collect_receipts", lambda: pipeline.collect_txs(dsn, mk, LABEL, workers=WORKERS, limit=RECEIPT_LIMIT))
