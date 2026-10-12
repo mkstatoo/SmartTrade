@@ -63,7 +63,9 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git checkout --orphan live-test-reports
           git rm -rf --cached . >/dev/null 2>&1 || true
-          git add -f reports/probe.md reports/probe.json reports/selection.json reports/live_verify.md reports/live_verify.json reports/market_run.md reports/market_run.json reports/market_run_base.md reports/market_run_base.json 2>/dev/null || true
+          for f in probe.md probe.json selection.json live_verify.md live_verify.json market_run.md market_run.json market_run_base.md market_run_base.json; do
+            [ -f reports/$f ] && git add -f reports/$f || true     # one missing file (e.g. skipped Base step) must not drop the others
+          done
           git commit -m "live test reports for ${GITHUB_SHA}" || echo "nothing to commit"
           git push -f origin live-test-reports
       - uses: actions/upload-artifact@v4
