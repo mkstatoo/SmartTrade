@@ -22,6 +22,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://smartcopy:smartcopy_test@localhost:5432/smartcopy_live
       RPC_ETHEREUM_1: ${{ secrets.RPC_ETHEREUM_1 }}
+      RPC_ETHEREUM_2: ${{ secrets.RPC_ETHEREUM_2 || secrets.PRC_ETHEREUM_2 }}   # accepts the secret under either spelling
       RPC_BASE_1: ${{ secrets.RPC_BASE_1 }}
     timeout-minutes: 120
     steps:
