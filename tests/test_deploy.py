@@ -149,7 +149,7 @@ def test_restore_of_dump_taken_from_older_release_then_migrate(cluster):
         cluster.create_db(name + "_r")
         cluster.restore(name + "_r", cluster.base / f"{name}.dump")
         rdsn = cluster.dsn(name + "_r")
-        assert migrate(rdsn) == ["005_v0_4_4", "006_v0_4_5"]
+        assert migrate(rdsn) == ["005_v0_4_4", "006_v0_4_5", "007_v0_4_6"]
         populate(rdsn)
         with app(rdsn) as c:
             assert c.get("/paper").json()["portfolio"]["open_positions"] == 1

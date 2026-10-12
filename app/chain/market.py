@@ -30,6 +30,20 @@ CHAINS = {
                      "0xdac17f958d2ee523a2206206994597c13d831ec7": ("USDT", 6), "0x6b175474e89094c44da98b954eedeac495271d0f": ("DAI", 18)},
         "chainlink_eth_usd": "0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419",
     },
+    # Base (OP-stack L2). Addresses were written from memory and are NOT trusted: tokens are re-verified on-chain (symbol/decimals) by
+    # check_constants, pools only count if the factory's getPool/getPair returns them, and the Chainlink feed is only a cross-check.
+    # A wrong address therefore shows up as a failed check in the run report instead of silently producing numbers.
+    "base": {
+        "chain_id": 8453,
+        "v3_factory": "0x33128a8fc17869897dce68ed026d694621f6fdfd",
+        "v2_factory": "0x8909dc15e40173ff4699343b6eb8132c65e18ec6",
+        "weth": "0x4200000000000000000000000000000000000006",
+        "stables": {"0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": "USDC", "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca": "USDbC",
+                    "0x50c5725949a6f0c72e6c4a641f24049a917db0cb": "DAI"},
+        "expected": {"0x4200000000000000000000000000000000000006": ("WETH", 18), "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": ("USDC", 6),
+                     "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca": ("USDbC", 6), "0x50c5725949a6f0c72e6c4a641f24049a917db0cb": ("DAI", 18)},
+        "chainlink_eth_usd": "0x71041dddad3595f9ced3dccfbe3d1f4b0a16bb70",
+    },
 }
 HEX20 = re.compile(r"^0x[0-9a-f]{40}$")
 

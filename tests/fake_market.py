@@ -73,6 +73,7 @@ class World:
         self.meta = {}
         self.truth = {"trades": [], "skips": []}
         self.k = 0
+        self.l1_fee = 0                  # wei added to every tx (OP-stack style L1 data fee); 0 = Ethereum
 
     def eth(self, n):
         return eth_price(n, self.shock)
@@ -80,7 +81,7 @@ class World:
     def _tx(self, n, frm, status=1, gas=150_000, egp=20 * 10 ** 9, to=None):
         self.k += 1
         h = _h("wtx", n, self.k)
-        self.meta[h] = {"from": frm, "to": to, "status": status, "gas_used": gas, "egp": egp}
+        self.meta[h] = {"from": frm, "to": to, "status": status, "gas_used": gas, "egp": egp, "l1_fee": self.l1_fee}
         return h
 
     def _swap(self, n, tx, pool, base_or_none, trader_pays: dict, trader_gets: dict, sender, recipient):

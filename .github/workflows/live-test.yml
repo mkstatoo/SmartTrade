@@ -46,6 +46,15 @@ jobs:
           MARKET_DISCOVERY_BLOCKS: ${{ vars.MARKET_DISCOVERY_BLOCKS || '300' }}
           MARKET_WATCH_BLOCKS: ${{ vars.MARKET_WATCH_BLOCKS || '3600' }}
         run: python scripts/market_run.py
+      - name: Wallet attribution on real Base data (smoke run)
+        id: market_base
+        continue-on-error: true
+        timeout-minutes: 40
+        env:
+          MARKET_CHAIN: base
+          MARKET_DISCOVERY_BLOCKS: ${{ vars.MARKET_BASE_DISCOVERY_BLOCKS || '600' }}
+          MARKET_WATCH_BLOCKS: ${{ vars.MARKET_BASE_WATCH_BLOCKS || '1800' }}
+        run: python scripts/market_run.py
       - name: Publish reports to branch live-test-reports
         if: always()
         run: |
@@ -53,7 +62,7 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git checkout --orphan live-test-reports
           git rm -rf --cached . >/dev/null 2>&1 || true
-          git add -f reports/probe.md reports/probe.json reports/selection.json reports/live_verify.md reports/live_verify.json reports/market_run.md reports/market_run.json 2>/dev/null || true
+          git add -f reports/probe.md reports/probe.json reports/selection.json reports/live_verify.md reports/live_verify.json reports/market_run.md reports/market_run.json reports/market_run_base.md reports/market_run_base.json 2>/dev/null || true
           git commit -m "live test reports for ${GITHUB_SHA}" || echo "nothing to commit"
           git push -f origin live-test-reports
       - uses: actions/upload-artifact@v4
@@ -62,5 +71,5 @@ jobs:
           name: live-reports
           path: reports/
       - name: Fail the job if a live check failed
-        if: steps.live.outcome == 'failure' || steps.market.outcome == 'failure'
+        if: steps.live.outcome == 'failure' || steps.market.outcome == 'failure' || steps.market_base.outcome == 'failure'
         run: exit 1

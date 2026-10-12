@@ -244,6 +244,7 @@ CREATE TABLE IF NOT EXISTS chain_txs (
     status INTEGER NOT NULL CHECK (status IN (0,1)),
     gas_used NUMERIC NOT NULL CHECK (gas_used >= 0),
     effective_gas_price NUMERIC NOT NULL CHECK (effective_gas_price >= 0),
+    l1_fee NUMERIC NOT NULL DEFAULT 0 CHECK (l1_fee >= 0),
     source TEXT NOT NULL CHECK (length(source) BETWEEN 1 AND 200),
     PRIMARY KEY (chain, block_hash, tx_hash),
     FOREIGN KEY (chain, block_hash) REFERENCES chain_blocks (chain, block_hash)
@@ -297,5 +298,5 @@ CREATE TABLE IF NOT EXISTS chain_trade_skips (
 CREATE OR REPLACE VIEW chain_trades_canonical AS
     SELECT t.* FROM chain_trades t JOIN chain_blocks b ON b.chain = t.chain AND b.block_hash = t.block_hash WHERE b.canonical;
 
-INSERT INTO schema_migrations (version) VALUES ('001_v03_to_v04'), ('002_v0_4_1'), ('003_v0_4_2'), ('004_v0_4_3'), ('005_v0_4_4'), ('006_v0_4_5')
+INSERT INTO schema_migrations (version) VALUES ('001_v03_to_v04'), ('002_v0_4_1'), ('003_v0_4_2'), ('004_v0_4_3'), ('005_v0_4_4'), ('006_v0_4_5'), ('007_v0_4_6')
 ON CONFLICT DO NOTHING;

@@ -29,8 +29,10 @@ def q(dsn, sql, *a):
         return c.execute(sql, a).fetchall()
 
 
-def run_all(db, *, seed=7, blocks=100, top_k=4, shock=None):
-    w = fm.World(blocks, start=START, shock=shock).build(seed)
+def run_all(db, *, seed=7, blocks=100, top_k=4, shock=None, l1_fee=0):
+    w = fm.World(blocks, start=START, shock=shock)
+    w.l1_fee = l1_fee
+    w = w.build(seed)
     ch = w.chain()
     ingest(ch, db, "eth-disc", start_block=0, confirmations=12, max_blocks=START, topics0=pipeline.SWAP_TOPICS)
     disc = pipeline.discover_pools(db, ch, "eth", CFG, discovery_chain="eth-disc", top_k=top_k)
@@ -109,7 +111,7 @@ def test_gas_is_priced_once_per_transaction_at_the_true_eth_price_and_stays_with
             assert all(r["gas_usd"] == 0 for r in rs)                    # no ETH price yet: gas unknown, flagged, not invented
             continue
         meta = w.meta[tx]
-        exp = Decimal(meta["gas_used"]) * Decimal(meta["egp"]) / 10 ** 18 * fm.eth_price(blk[tx])
+        exp = (Decimal(meta["gas_used"]) * Decimal(meta["egp"]) + Decimal(meta.get("l1_fee", 0))) / 10 ** 18 * fm.eth_price(blk[tx])
         holders = [r for r in rs if r["gas_usd"] > 0]
         confirmed = [r for r in rs if r["confidence"] == "confirmed"]
         assert len(holders) == 1 and abs(holders[0]["gas_usd"] - exp) <= exp * Decimal("1e-6"), tx
@@ -260,3 +262,19 @@ def test_wallet_pnl_equals_an_independent_reference_on_the_derived_ledgers(db, m
             assert abs(Decimal(str(t[key])) - want) <= tol * max(1, abs(want)), (wallet, key, t[key], want)
         checked_known += t["closed_trades_fully_known"] > 0
     assert checked_known >= 1                                              # at least one wallet really closed a trade with a known cost
+
+
+def test_l1_data_fee_is_part_of_the_gas_cost(db):
+    """OP-stack chains (Base) charge an L1 fee outside gasUsed*effectiveGasPrice; leaving it out would overstate every wallet's PnL."""
+    fee = 3 * 10 ** 15
+    w, ch, disc, col, der = run_all(db, l1_fee=fee)
+    blk = block_of(w)
+    stored = {r["tx_hash"]: r["l1_fee"] for r in q(db, "SELECT tx_hash, l1_fee FROM chain_txs WHERE chain='eth'")}
+    assert stored and all(v == fee for v in stored.values())
+    checked = 0
+    for r in q(db, "SELECT tx_hash, gas_usd, evidence FROM chain_trades_canonical WHERE chain='eth' AND gas_usd > 0"):
+        meta = w.meta[r["tx_hash"]]
+        exp = (Decimal(meta["gas_used"]) * Decimal(meta["egp"]) + fee) / 10 ** 18 * fm.eth_price(blk[r["tx_hash"]])
+        assert abs(r["gas_usd"] - exp) <= exp * Decimal("1e-6")
+        checked += 1
+    assert checked > 10

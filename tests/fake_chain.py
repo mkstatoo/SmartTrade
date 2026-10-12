@@ -131,7 +131,7 @@ class FakeChain:
                      "topics": list(l["topics"]), "data": l["data"]} for i, l in enumerate(b["logs"]) if l.get("tx") == tx_hash]
             if logs:
                 return {"tx_hash": tx_hash, "block_number": n, "block_hash": b["hash"], "from": meta["from"], "to": meta.get("to"), "status": meta["status"],
-                        "gas_used": meta["gas_used"], "effective_gas_price": meta["egp"], "logs": logs}
+                        "gas_used": meta["gas_used"], "effective_gas_price": meta["egp"], "l1_fee": meta.get("l1_fee", 0), "logs": logs}
         raise RpcError("receipt not available")
 
     # ---- raw JSON-RPC view (for the HTTP mock)
@@ -172,7 +172,7 @@ class FakeChain:
             except RpcError:
                 return None
             return {"transactionHash": r["tx_hash"], "blockNumber": hex(r["block_number"]), "blockHash": r["block_hash"], "from": r["from"], "to": r["to"],
-                    "status": hex(r["status"]), "gasUsed": hex(r["gas_used"]), "effectiveGasPrice": hex(r["effective_gas_price"]),
+                    "status": hex(r["status"]), "gasUsed": hex(r["gas_used"]), "effectiveGasPrice": hex(r["effective_gas_price"]), **({"l1Fee": hex(r["l1_fee"])} if r.get("l1_fee") else {}),
                     "logs": [{"blockNumber": hex(l["block_number"]), "blockHash": l["block_hash"], "transactionHash": l["tx_hash"],
                               "logIndex": hex(l["log_index"]), "address": l["address"], "topics": l["topics"], "data": l["data"],
                               "removed": False} for l in r["logs"]]}

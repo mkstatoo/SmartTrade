@@ -69,3 +69,7 @@
 - `FailoverSource`: automatic switch to the next provider on quota/rate-limit errors (tests: switch, all-exhausted, non-quota errors untouched).
 - Provider probe ranks by max getLogs range first, private endpoint as tie-breaker.
 - Beneficiary diagnostic for unattributed swaps; staged state check confirmed on real data (19/19).
+
+## 0.4.6
+- Migration 007: `chain_txs.l1_fee`; receipts parse `l1Fee` (OP-stack); gas cost = gasUsed*effectiveGasPrice + l1Fee (test with a non-zero L1 fee).
+- `market.CHAINS["base"]` (addresses written from memory; verified on-chain at run time, a wrong address shows up as a failed check) and `MARKET_CHAIN` switch in market_run (reports `market_run_base.*`); workflow smoke step for Base (600+1800 blocks).

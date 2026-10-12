@@ -253,10 +253,10 @@ def collect_txs(dsn, rpc_factory, chain: str, *, workers: int = 4, limit: int | 
                         res.notes.append(f"receipt of {tx_hash[:12]} disagrees with stored logs")
                     continue
                 with conn.transaction():
-                    conn.execute("INSERT INTO chain_txs(chain, tx_hash, block_hash, block_number, from_addr, to_addr, status, gas_used, effective_gas_price, source) "
-                                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+                    conn.execute("INSERT INTO chain_txs(chain, tx_hash, block_hash, block_number, from_addr, to_addr, status, gas_used, effective_gas_price, l1_fee, source) "
+                                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
                                  (chain, tx_hash, block_hash, rc["block_number"], rc["from"], rc.get("to"), rc["status"], rc["gas_used"],
-                                  rc["effective_gas_price"], source))
+                                  rc["effective_gas_price"], rc.get("l1_fee", 0), source))
                     for l in rc["logs"]:
                         if l["address"] not in tokens or not l["topics"] or l["topics"][0] != abi.TOPIC_ERC20_TRANSFER:
                             continue
@@ -369,7 +369,7 @@ def derive_trades(dsn, chain: str, cfg: dict, *, method_version: int = METHOD_VE
                                           "first_log_index": ev[t][0]["log_index"]}})
             if made:
                 px_eth = series.at(sw[0]["block"], sw[0]["log_index"])
-                gas = (Decimal(int(tx["gas_used"])) * Decimal(int(tx["effective_gas_price"])) / ETH_DEC * px_eth) if px_eth else Decimal(0)
+                gas = ((Decimal(int(tx["gas_used"])) * Decimal(int(tx["effective_gas_price"])) + Decimal(int(tx.get("l1_fee") or 0))) / ETH_DEC * px_eth) if px_eth else Decimal(0)
                 target = next((m for m in made if m["conf"] == "confirmed"), made[0])     # gas must stay with a trade that PnL will use
                 for m in made:
                     m["gas_usd"] = gas if m is target else Decimal(0)

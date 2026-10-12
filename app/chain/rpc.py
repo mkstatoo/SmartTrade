@@ -163,6 +163,7 @@ class JsonRpcSource:
                     "block_hash": r["blockHash"].lower(), "from": r["from"].lower(), "to": to.lower() if to else None,
                     "status": _hex_int(r.get("status", "0x1"), "status"), "gas_used": _hex_int(r["gasUsed"], "gasUsed"),
                     "effective_gas_price": _hex_int(r.get("effectiveGasPrice", "0x0"), "effectiveGasPrice"),
+                    "l1_fee": _hex_int(r.get("l1Fee", "0x0"), "l1Fee"),     # OP-stack only; absent on Ethereum
                     "logs": [_parse_log(l) for l in r["logs"]]}
         except (KeyError, ValueError, TypeError, AttributeError):
             raise RpcError("malformed receipt") from None

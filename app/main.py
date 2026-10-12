@@ -64,7 +64,7 @@ def create_app(store=None, clock=None, sweep_interval=None, max_body_bytes=None)
                 task.cancel()
                 await asyncio.gather(task, return_exceptions=True)
 
-    app = FastAPI(title="Smart Copy Trading Research API", version="0.4.5", lifespan=lifespan,
+    app = FastAPI(title="Smart Copy Trading Research API", version="0.4.6", lifespan=lifespan,
                   docs_url=None, redoc_url=None, openapi_url=None)       # no public schema/UI
     app.state.throttle = AuthThrottle(CONFIG.auth_fail_limit, CONFIG.auth_fail_window_sec)
     app.add_middleware(BodyLimitMiddleware, limit=CONFIG.max_body_bytes if max_body_bytes is None else max_body_bytes)

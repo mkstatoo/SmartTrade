@@ -27,8 +27,11 @@ from app.chain.ingest import ingest  # noqa: E402
 from app.chain.rpc import FailoverSource, JsonRpcSource, RpcError  # noqa: E402
 from app.migrate import migrate  # noqa: E402
 
-CHAIN = "ethereum"
-LABEL, DLABEL = "ethereum-mkt", "ethereum-mkt-disc"
+CHAIN = os.getenv("MARKET_CHAIN", "ethereum")
+if CHAIN not in market.CHAINS:
+    raise SystemExit(f"unknown chain {CHAIN!r}")
+LABEL, DLABEL = f"{CHAIN}-mkt", f"{CHAIN}-mkt-disc"     # ethereum keeps its historical labels
+SUFFIX = "" if CHAIN == "ethereum" else f"_{CHAIN}"
 CONF = 12
 DISC = int(os.getenv("MARKET_DISCOVERY_BLOCKS", "300"))
 WATCH = int(os.getenv("MARKET_WATCH_BLOCKS", "1500"))
@@ -286,20 +289,20 @@ def main():
 
     def flush():
         rep["partial"] = True
-        (out / "market_run.json").write_text(json.dumps(rep, indent=1, default=str))
-        (out / "market_run.md").write_text(md(rep))
+        (out / f"market_run{SUFFIX}.json").write_text(json.dumps(rep, indent=1, default=str))
+        (out / f"market_run{SUFFIX}.md").write_text(md(rep))
 
     def finish(code):
         rep.pop("partial", None)
-        flush_final = (out / "market_run.json")
+        flush_final = (out / f"market_run{SUFFIX}.json")
         flush_final.write_text(json.dumps(rep, indent=1, default=str))
-        (out / "market_run.md").write_text(md(rep))
+        (out / f"market_run{SUFFIX}.md").write_text(md(rep))
         print(json.dumps(rep["headline"], default=str), flush=True)
         return code
     FLUSH.append(flush)
 
     if not sel or not sel.get("primary"):
-        rep["skipped"] = "no usable primary provider for ethereum in selection.json"
+        rep["skipped"] = f"no usable primary provider for {CHAIN} in selection.json"
         return finish(2)
     dsn = os.environ["DATABASE_URL"]
     migrate(dsn)

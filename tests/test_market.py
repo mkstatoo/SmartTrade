@@ -205,3 +205,19 @@ def test_robust_series_recovers_from_a_real_regime_change_without_looking_ahead(
     assert ser.at(105, 0) == Decimal(3000)
     assert ser.at(111, 0) == Decimal(3302) and ser.at(112, 0) == Decimal(3303)
     assert ser.at(110, 0) == Decimal(3000)                           # the new regime is NOT applied retroactively
+
+
+def test_chain_configs_are_well_formed_and_base_is_not_ethereum():
+    from app.chain import market
+    import re
+    for name, cfg in market.CHAINS.items():
+        for k in ("v3_factory", "v2_factory", "weth", "chainlink_eth_usd"):
+            assert re.fullmatch(r"0x[0-9a-f]{40}", cfg[k]), (name, k)
+        assert set(cfg["stables"]) <= set(cfg["expected"]) and cfg["weth"] in cfg["expected"]
+        assert all(re.fullmatch(r"0x[0-9a-f]{40}", a) for a in cfg["expected"])
+        assert cfg["expected"][cfg["weth"]] == ("WETH", 18)
+    eth, base = market.CHAINS["ethereum"], market.CHAINS["base"]
+    assert base["chain_id"] == 8453 and eth["chain_id"] == 1
+    for k in ("v3_factory", "v2_factory", "weth", "chainlink_eth_usd"):
+        assert eth[k] != base[k]
+    assert not set(eth["expected"]) & set(base["expected"]) - {base["weth"]}

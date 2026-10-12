@@ -27,7 +27,7 @@ def build(kind):
     return name, dsn
 
 
-@pytest.fixture(params=["fresh", "v0_3", "v0_4", "v0_4_2", "v0_4_3", "v0_4_4"])
+@pytest.fixture(params=["fresh", "v0_3", "v0_4", "v0_4_2", "v0_4_3", "v0_4_4", "v0_4_5"])
 def migrated(request):
     name, dsn = build(request.param)
     first = migrate(dsn)
@@ -45,20 +45,20 @@ def signature(dsn):
 
 def test_migration_chain_and_repeat_are_idempotent(migrated):
     kind, dsn, first = migrated
-    assert first == {"fresh": ["schema.sql"], "v0_3": ["001_v03_to_v04", "002_v0_4_1", "003_v0_4_2", "004_v0_4_3", "005_v0_4_4", "006_v0_4_5"],
-                     "v0_4": ["002_v0_4_1", "003_v0_4_2", "004_v0_4_3", "005_v0_4_4", "006_v0_4_5"],
-                     "v0_4_2": ["004_v0_4_3", "005_v0_4_4", "006_v0_4_5"], "v0_4_3": ["005_v0_4_4", "006_v0_4_5"], "v0_4_4": ["006_v0_4_5"]}[kind]
+    assert first == {"fresh": ["schema.sql"], "v0_3": ["001_v03_to_v04", "002_v0_4_1", "003_v0_4_2", "004_v0_4_3", "005_v0_4_4", "006_v0_4_5", "007_v0_4_6"],
+                     "v0_4": ["002_v0_4_1", "003_v0_4_2", "004_v0_4_3", "005_v0_4_4", "006_v0_4_5", "007_v0_4_6"],
+                     "v0_4_2": ["004_v0_4_3", "005_v0_4_4", "006_v0_4_5", "007_v0_4_6"], "v0_4_3": ["005_v0_4_4", "006_v0_4_5", "007_v0_4_6"], "v0_4_4": ["006_v0_4_5", "007_v0_4_6"], "v0_4_5": ["007_v0_4_6"]}[kind]
     assert migrate(dsn) == [] and migrate(dsn) == []
     with psycopg.connect(dsn) as c:
         assert c.execute("select count(*) from pg_constraint where not convalidated").fetchone()[0] == 0
         vers = {r[0] for r in c.execute("select version from schema_migrations")}
-    assert {"002_v0_4_1", "003_v0_4_2", "004_v0_4_3", "005_v0_4_4", "006_v0_4_5"} <= vers
+    assert {"002_v0_4_1", "003_v0_4_2", "004_v0_4_3", "005_v0_4_4", "006_v0_4_5", "007_v0_4_6"} <= vers
 
 
 def test_migrated_schema_equals_fresh_schema():
     names, sigs = [], {}
     try:
-        for kind in ("fresh", "v0_3", "v0_4", "v0_4_2", "v0_4_3", "v0_4_4"):
+        for kind in ("fresh", "v0_3", "v0_4", "v0_4_2", "v0_4_3", "v0_4_4", "v0_4_5"):
             n, dsn = build(kind)
             names.append(n)
             migrate(dsn)
@@ -66,7 +66,7 @@ def test_migrated_schema_equals_fresh_schema():
     finally:
         for n in names:
             drop_db(n)
-    assert sigs["fresh"] == sigs["v0_3"] == sigs["v0_4"] == sigs["v0_4_2"] == sigs["v0_4_3"] == sigs["v0_4_4"]
+    assert sigs["fresh"] == sigs["v0_3"] == sigs["v0_4"] == sigs["v0_4_2"] == sigs["v0_4_3"] == sigs["v0_4_4"] == sigs["v0_4_5"]
 
 
 def test_schema_sql_twice_is_harmless():
