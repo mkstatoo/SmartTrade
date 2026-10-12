@@ -62,3 +62,13 @@ A re-run of the same job to repeat the state check failed in `ingest_watch` with
 
 ## Tests behind it
 `tests/test_market.py` (selectors verified by keccak, codecs, pool verification against impostors, valuation), `tests/test_pipeline.py` (a synthetic world with hidden true prices: every derived trade equals the ground truth exactly in quantity and within 1e-6 in USD; skips match the expected reasons; manipulated ETH print dropped; orphaned blocks excluded; tampered/missing receipts rejected), `tests/test_live_scripts.py` (the real-run script against local mock nodes, including a lying Chainlink feed, a tampered second provider and a node whose state contradicts the logs). `scripts/mutation_check.py` injects 23 deliberate bugs; all are detected.
+
+## Run of 2026-10-12 (commit "Provider failover…", job 38207590583) — real Ethereum data, all integrity checks passed
+
+300 discovery + 3600 watch blocks (head 26174293), 33 pools, 34 117 receipts (0 errors, 0 inconsistent).
+Trades 14 722 (14 463 confirmed / 259 mismatch); skips: quote_only 13 793, no_sender_transfer 7 457, zero_net_flow 180, no_eth_price 5.
+Chainlink vs swap-derived ETH price: deviation ≈0.14–0.24 % on samples (pass); second provider: 50/50 receipts and wallets equal;
+cross-pool price deviation median 0.065 % / max 0.56 % (243 buckets); **balance-state check on real data: 19 of 19 candidates exact match (pass)**.
+Unattributed swap txs (sample 300): final recipient is a contract 207, EOA 18, none 75 → mostly bots/aggregators, so no relayer rule is justified yet.
+PnL overview (pipeline check, not a wallet ranking): 471 wallets with a known-cost closed trade, 1 435 closed trades, win rate 50.4 %.
+Provider failover (`FailoverSource`) on quota errors is covered by unit tests; this run did not need a switch recorded in the report.

@@ -64,3 +64,8 @@
 - Real-chain run script with independent checks; provider selection prefers private keyed endpoints; the job no longer looks green when nothing was verified.
 - Tests: 705 passing on PostgreSQL 16 (market, pipeline against ground truth, script runs against local mock nodes).
 - Review round: causal ETH price series (`no_eth_price` instead of a later price), causal outlier filter, gas kept on a confirmed trade, regression tests (future shock cannot change past trades; gas allocation), PnL differential test against `tests/reference_pnl.py`, staged receipt collection for the state check, progressive run reports, 12-hour real run with a first PnL overview.
+
+## 0.4.5 (addendum)
+- `FailoverSource`: automatic switch to the next provider on quota/rate-limit errors (tests: switch, all-exhausted, non-quota errors untouched).
+- Provider probe ranks by max getLogs range first, private endpoint as tie-breaker.
+- Beneficiary diagnostic for unattributed swaps; staged state check confirmed on real data (19/19).
