@@ -40,6 +40,7 @@ RECEIPT_LIMIT = int(os.getenv("MARKET_RECEIPT_LIMIT", "150000"))
 CANDIDATES = int(os.getenv("MARKET_CANDIDATES", "300"))
 SAMPLE = int(os.getenv("MARKET_VERIFY_SAMPLE", "50"))
 WORKERS = int(os.getenv("MARKET_WORKERS", "4"))
+FRESH_TAIL = int(os.getenv("MARKET_FRESH_TAIL_BLOCKS", "40"))
 # the independent verifier is usually a non-archive public node: it only serves recent receipts, so the sample is drawn from the newest blocks
 VERIFY_RECENT_BLOCKS = int(os.getenv("MARKET_VERIFY_RECENT_BLOCKS", "100"))
 
@@ -139,6 +140,28 @@ def verify_with_second_provider(ver, dsn, chain, tokens):
     return {"receipts_checked": len(rows) - errors, "receipt_mismatches": bad, "receipt_fetch_errors": errors,
             "trade_wallets_checked": len(trades) - from_err, "wallet_mismatches": bad_from, "tx_fetch_errors": from_err,
             "passed": not bad and not bad_from and (len(rows) - errors) > 0 and (len(trades) - from_err) > 0}
+
+
+def volume_coverage(dsn, chain, swaps, pools, val):
+    """How much of the traded USD volume (priced swaps with exactly one quote leg) sits in transactions that became a wallet trade,
+    versus transactions that were skipped and why. Counting transactions overstates coverage when bots trade small and often."""
+    traded = {r["tx_hash"] for r in q(dsn, "SELECT DISTINCT tx_hash FROM chain_trades_canonical WHERE chain=%s", chain)}
+    skip = {}
+    for r in q(dsn, "SELECT tx_hash, reason FROM chain_trade_skips WHERE chain=%s", chain):
+        skip.setdefault(r["tx_hash"], r["reason"])
+    usd = Counter()
+    n = Counter()
+    for sw in swaps:
+        r = val.priced_swap(pools[sw["pool"]], sw["d0"], sw["d1"], sw["block"], sw["log_index"])
+        if not isinstance(r, dict):
+            continue
+        cls = "attributed_to_a_wallet" if sw["tx"] in traded else ("skipped:" + skip[sw["tx"]] if sw["tx"] in skip else "no_receipt_or_other")
+        usd[cls] += r["usd"]
+        n[cls] += 1
+    total = sum(usd.values()) or Decimal(1)
+    return {"priced_swaps_usd_total": float(sum(usd.values())),
+            "by_class": {k: {"usd": float(v), "share": round(float(v / total), 4), "swaps": n[k]} for k, v in usd.most_common()},
+            "note": "volume-weighted: the share of traded USD whose wallet we know; txs counted without weights would overstate it"}
 
 
 def cross_pool_prices(swaps, pools, val):
@@ -343,6 +366,15 @@ def main():
         return finish(1)
     rep["watch_ingest"] = {k: getattr(w1, k) for k in ("blocks", "logs", "decoded", "decode_errors", "reorgs", "next_block")} | {"notes": w1.notes[:5]}
 
+    # a fresh tail: the balance-state check needs trades whose blocks the node still serves state for. The run itself takes a long time,
+    # so the blocks that were "recent" when it started are not any more; extend the window up to the CURRENT head right before that check.
+    w2 = step(rep, "ingest_fresh_tail", lambda: ingest(prim, dsn, LABEL, confirmations=CONF, batch=batch, max_blocks=FRESH_TAIL,
+                                                       topics0=pipeline.SWAP_TOPICS, addresses=pools))
+    if w2 is not None:
+        rep["watch_ingest"]["fresh_tail"] = {"blocks": w2.blocks, "logs": w2.logs, "next_block": w2.next_block}
+        rep["window"]["watch"][1] = w2.next_block - 1
+        last = w2.next_block - 1
+
     # ETH price vs Chainlink NOW, while the node still serves state for these blocks
     conn = psycopg.connect(dsn, row_factory=dict_row)
     pool_objs = pipeline.watch_list(dsn, LABEL)
@@ -359,7 +391,7 @@ def main():
 
     mk = lambda: FailoverSource([JsonRpcSource(urls[n], timeout=30, retries=3, backoff=1.0) for n in order], labels=order)  # noqa: E731
     # tail of the window first: the balance-state check only works while the node still serves state for those blocks
-    tail = step(rep, "collect_tail_receipts", lambda: pipeline.collect_txs(dsn, mk, LABEL, workers=WORKERS, since_block=last - 80))
+    tail = step(rep, "collect_tail_receipts", lambda: pipeline.collect_txs(dsn, mk, LABEL, workers=WORKERS, since_block=last - 60))
     if tail is not None and step(rep, "derive_tail", lambda: pipeline.derive_trades(dsn, LABEL, cfg)) is not None:
         rep["state_check"] = step(rep, "state_check", lambda: state_check(prim, dsn, LABEL)) or {"status": "error"}
     col = step(rep, "collect_receipts", lambda: pipeline.collect_txs(dsn, mk, LABEL, workers=WORKERS, limit=RECEIPT_LIMIT))
@@ -385,6 +417,7 @@ def main():
     else:
         rep["second_provider"] = {"passed": None, "note": "no verifier provider available"}
     rep["cross_pool_prices"] = step(rep, "cross_pool_prices", lambda: cross_pool_prices(swaps_all, pool_objs, val))
+    rep["volume_coverage"] = step(rep, "volume_coverage", lambda: volume_coverage(dsn, LABEL, swaps_all, pool_objs, val))
     rep["unattributed_beneficiaries"] = step(rep, "unattributed_beneficiaries", lambda: unattributed_beneficiaries(prim, dsn, LABEL))
     rep.setdefault("state_check", {"status": "error: tail stage did not run"})
     rep["tx_targets"] = step(rep, "tx_targets", lambda: to_summary(dsn, LABEL))

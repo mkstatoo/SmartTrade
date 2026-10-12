@@ -136,6 +136,10 @@ def test_market_run_end_to_end_with_independent_checks(tmp_path):
         rep = json.loads((tmp_path / "market_run.json").read_text())
         assert rep["chainlink"]["status"] == "pass" and rep["second_provider"]["passed"] is True
         assert rep["state_check"]["status"] == "pass" and rep["state_check"]["checked"] >= 10 and rep["state_check"]["match_rate"] >= 0.9
+        vc = rep["volume_coverage"]
+        assert vc["priced_swaps_usd_total"] > 0 and abs(sum(c["share"] for c in vc["by_class"].values()) - 1) < 0.01
+        assert vc["by_class"]["attributed_to_a_wallet"]["share"] > 0 and any(k.startswith("skipped:") for k in vc["by_class"])
+        assert "fresh_tail" in rep["watch_ingest"]
         ub = rep["unattributed_beneficiaries"]
         assert ub["sampled"] > 0 and ub["code_lookup_errors"] == 0 and sum(ub["final_recipient_is"].values()) == ub["sampled"]
         assert rep["tx_targets"]["top_to_for_txs_with_a_trade"] and rep["tx_targets"]["unattributed_txs"] > 0
