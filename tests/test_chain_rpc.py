@@ -237,3 +237,8 @@ def test_refusal_of_archive_data_counts_as_a_failover_reason():
 def test_credit_exhaustion_counts_as_a_failover_reason():
     from app.chain.rpc import _is_quota_error
     assert _is_quota_error(RpcError("HTTP 402: Out of CU"))
+
+
+def test_request_timeout_status_is_retried(srv):
+    s = srv(FakeChain(5), {1: 408, 2: 408})
+    assert src(s.url).head() == 4 and s.n == 3

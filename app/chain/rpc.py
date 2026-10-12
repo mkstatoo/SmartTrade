@@ -83,7 +83,7 @@ class JsonRpcSource:
                 except Exception:  # noqa: BLE001
                     detail = ""
                 last = RpcError(f"HTTP {exc.code}" + (f": {detail}" if detail else ""))
-                if exc.code not in (429, 500, 502, 503, 504):
+                if exc.code not in (408, 429, 500, 502, 503, 504):   # 408: free plans time requests out under load
                     raise last from None
             except (urllib.error.URLError, TimeoutError, ConnectionError, json.JSONDecodeError, OSError) as exc:
                 last = RpcError(f"transport error: {type(exc).__name__}")
