@@ -198,6 +198,40 @@ def to_summary(dsn, chain):
                     "unattributed txs is typically a private bot contract"}
 
 
+def unattributed_beneficiaries(rpc, dsn, chain, sample=300):
+    """DIAGNOSTIC ONLY (nothing is attributed from it): for transactions whose sender did not receive/pay the traded token, who DID end up with it?
+    An address without code (EOA) is plausibly a real user behind a relayer; an address with code is a bot / vault / aggregator contract."""
+    pools = {r["pool"] for r in q(dsn, "SELECT pool FROM chain_pools WHERE chain=%s", chain)}
+    rows = q(dsn, "SELECT DISTINCT ON (s.tx_hash) s.tx_hash, s.block_hash, s.detail->>'token' AS token FROM chain_trade_skips s "
+                  "JOIN chain_blocks b ON b.chain=s.chain AND b.block_hash=s.block_hash AND b.canonical "
+                  "WHERE s.chain=%s AND s.reason='no_sender_transfer' AND s.tx_hash NOT IN (SELECT tx_hash FROM chain_trades_canonical WHERE chain=%s) "
+                  "ORDER BY s.tx_hash LIMIT 5000", chain, chain)
+    rows = sorted(rows, key=lambda r: __import__("hashlib").md5(r["tx_hash"].encode()).hexdigest())[:sample]
+    kinds, repeat, errors = Counter(), Counter(), 0
+    code_cache = {}
+    for r in rows:
+        tr = q(dsn, "SELECT to_addr, log_index FROM chain_transfers WHERE chain=%s AND block_hash=%s AND tx_hash=%s AND token=%s ORDER BY log_index DESC",
+               chain, r["block_hash"], r["tx_hash"], r["token"])
+        final = next((t["to_addr"] for t in tr if t["to_addr"] not in pools and t["to_addr"] != r["token"]), None)
+        if final is None:
+            kinds["no_final_recipient"] += 1
+            continue
+        repeat[final] += 1
+        if final not in code_cache:
+            try:
+                code_cache[final] = len(rpc._call("eth_getCode", [final, "latest"])) > 2
+            except RpcError:
+                code_cache[final] = None
+        c = code_cache[final]
+        if c is None:
+            errors += 1
+        else:
+            kinds["contract" if c else "eoa"] += 1
+    return {"sampled": len(rows), "final_recipient_is": dict(kinds), "code_lookup_errors": errors,
+            "most_repeated_recipients": [{"to": a, "txs": n} for a, n in repeat.most_common(5)],
+            "note": "diagnostic only: an EOA recipient suggests a real user behind a relayer (a possible later attribution rule); a contract suggests a bot or aggregator"}
+
+
 def wallet_summary(dsn, chain):
     rows = q(dsn, "SELECT wallet, count(*) n, sum(usd) usd, count(*) FILTER (WHERE confidence='confirmed') c FROM chain_trades_canonical "
                   "WHERE chain=%s GROUP BY wallet ORDER BY sum(usd) DESC", chain)
@@ -339,6 +373,7 @@ def main():
     else:
         rep["second_provider"] = {"passed": None, "note": "no verifier provider available"}
     rep["cross_pool_prices"] = step(rep, "cross_pool_prices", lambda: cross_pool_prices(swaps_all, pool_objs, val))
+    rep["unattributed_beneficiaries"] = step(rep, "unattributed_beneficiaries", lambda: unattributed_beneficiaries(prim, dsn, LABEL))
     rep.setdefault("state_check", {"status": "error: tail stage did not run"})
     rep["tx_targets"] = step(rep, "tx_targets", lambda: to_summary(dsn, LABEL))
     rep["wallets"] = step(rep, "wallet_summary", lambda: wallet_summary(dsn, LABEL))

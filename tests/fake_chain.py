@@ -157,6 +157,8 @@ class FakeChain:
         if method == "eth_call":
             blk = params[1]
             return self.call(params[0]["to"], params[0]["data"], None if blk == "latest" else int(blk, 16))
+        if method == "eth_getCode":
+            return "0x6080" if params[0] in getattr(self, "contracts", ()) else "0x"
         if method == "eth_getTransactionByHash":
             try:
                 r = self.receipt(params[0])
