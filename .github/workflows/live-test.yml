@@ -48,6 +48,7 @@ jobs:
         run: python scripts/market_run.py
       - name: Wallet attribution on real Base data (smoke run)
         id: market_base
+        if: vars.RUN_BASE_SMOKE == 'true'     # opt-in: the free private endpoint runs out of credits when this runs on every push
         continue-on-error: true
         timeout-minutes: 40
         env:

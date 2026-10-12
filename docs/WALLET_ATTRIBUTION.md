@@ -72,3 +72,13 @@ cross-pool price deviation median 0.065 % / max 0.56 % (243 buckets); **balance-
 Unattributed swap txs (sample 300): final recipient is a contract 207, EOA 18, none 75 → mostly bots/aggregators, so no relayer rule is justified yet.
 PnL overview (pipeline check, not a wallet ranking): 471 wallets with a known-cost closed trade, 1 435 closed trades, win rate 50.4 %.
 Provider failover (`FailoverSource`) on quota errors is covered by unit tests; this run did not need a switch recorded in the report.
+
+## Base smoke runs (2026-10-12, Option 1 first contact)
+Run 1 (600 discovery + 1800 watch blocks, 33 pools): receipts stored 19 243, **errors 1 205** (provider refused older receipts: "archive requests require a personal token"),
+trades 12 211 (12 021 confirmed), 279 wallets with a confirmed trade, Chainlink check pass (median 0.17 %), cross-pool price deviation median 0.003 % / max 0.057 %.
+The addresses written from memory (factories, WETH, USDC, USDbC, DAI, Chainlink feed) were all accepted by the on-chain checks. The independent second-provider
+check **failed** in that run (all 50 receipts refused by the verifier for being too old) → fixed by sampling the newest blocks; the fix is unit-tested but not yet seen
+passing on Base. Balance-state check: unavailable. Gas now includes the L1 data fee (migration 007), also not yet seen on real Base data.
+Run 2 could not start discovery: the free private endpoint answered "HTTP 402 Out of CU" (credits spent by run 1). Base therefore has NO fully passing real run yet.
+The Base step is now opt-in (repository variable RUN_BASE_SMOKE=true). The 5.9 % of Base receipts that could not be fetched are a coverage loss, not a measured result.
+Ethereum rerun after the fixes: all integrity checks pass, second-provider 50/50; balance-state check was "unavailable" (0 candidates) this time, unlike the 19/19 run before.
