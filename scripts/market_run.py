@@ -313,6 +313,7 @@ def main():
     rng_primary = sel.get("ranges", {}).get(sel["primary"], 1)
     batch = max(1, min(50, rng_primary))
     rep["primary"], rep["verifier"], rep["getlogs_range"] = sel["primary"], sel.get("verifier"), rng_primary
+    rep["failover"] = {"chain": order[:-1] if sel.get("verifier") else order, "switches": prim.switches}  # same list object: stays current
     head = prim.head()
     last = head - CONF - 3
     start = last - (DISC + WATCH) + 1
