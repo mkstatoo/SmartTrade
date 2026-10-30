@@ -270,3 +270,17 @@ def test_chainlink_check_compares_the_same_moment_when_the_feed_is_old():
     assert wrong["status"] == "fail"
     unknown_age = mr.chainlink_check(_chainlink_stub(3000, 1000), cfg, ser, 215, lambda ts: None)
     assert unknown_age["status"] == "fail" and unknown_age["basis"].startswith("raw")     # no update time known -> the strict raw check decides
+
+
+def test_chainlink_tolerance_boundaries_are_explicit():
+    from decimal import Decimal as Dc
+    from app.chain import market as mk
+    mr = _load_market_run()
+    cfg = mk.CHAINS["ethereum"]
+    ser = mk.EthSeries()
+    for b in range(90, 210):
+        ser.add(b, 0, Dc(3000))
+    ser.finalize()
+    at_ts = lambda ts: 100                                       # noqa: E731
+    assert mr.chainlink_check(_chainlink_stub(2985, 1000), cfg, ser, 215, at_ts)["status"] == "pass"      # 0.5 % off: inside the feed's own threshold
+    assert mr.chainlink_check(_chainlink_stub(2970, 1000), cfg, ser, 215, at_ts)["status"] == "fail"      # 1.0 % off: not explained by the threshold
