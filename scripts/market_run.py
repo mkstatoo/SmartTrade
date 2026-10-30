@@ -76,8 +76,11 @@ def step(rep, name, fn):
 
 
 # ------------------------------------------------------------------------------------------------ independent checks
-def chainlink_check(rpc, cfg, series, head):
-    """ETH price from swaps vs Chainlink at the same blocks. Chainlink is a cross-check only, never an input."""
+def chainlink_check(rpc, cfg, series, head, block_at_ts=None):
+    """ETH price from swaps vs Chainlink. Chainlink is a cross-check only, never an input.
+    Chainlink updates only on a 0.5 % move or its heartbeat, so in a fast market its value is OLD. The raw comparison (same block) is always
+    reported; when the block of the feed's own update time is known (`block_at_ts`) the swap price AT THAT MOMENT is compared as well, and
+    that lag-corrected comparison decides pass/fail (it compares the same moment, so it is the stricter question: is our price right?)."""
     feed = cfg["chainlink_eth_usd"]
     out = {"feed": feed, "samples": [], "unavailable": 0}
     dec = market._try(rpc, feed, market.SEL["feed_decimals"])
@@ -93,16 +96,49 @@ def chainlink_check(rpc, cfg, series, head):
             continue
         px = Decimal(market.dec_int(res, 1)) / Decimal(10) ** d
         mine = series.at(b, 10 ** 9)
-        out["samples"].append({"block": b, "blocks_behind_head": head - b, "chainlink": float(px), "from_swaps": float(mine),
-                               "deviation_pct": float(abs(mine - px) / px * 100)})
+        smp = {"block": b, "blocks_behind_head": head - b, "chainlink": float(px), "from_swaps": float(mine),
+               "deviation_pct": float(abs(mine - px) / px * 100)}
+        upd = market.dec_uint(res, 3)
+        if block_at_ts is not None and upd:
+            ub = block_at_ts(upd)
+            at_upd = series.at(ub, 10 ** 9) if ub is not None else None
+            if at_upd is not None:
+                smp |= {"feed_updated_at_block": ub, "feed_age_blocks": b - ub, "from_swaps_at_feed_update": float(at_upd),
+                        "lag_corrected_deviation_pct": float(abs(at_upd - px) / px * 100)}
+        out["samples"].append(smp)
     if not out["samples"]:
         out["status"] = "unavailable: node did not serve historical state for these blocks"
         return out
-    devs = [s["deviation_pct"] for s in out["samples"]]
+    raw = [x["deviation_pct"] for x in out["samples"]]
+    out["raw_median_deviation_pct"], out["raw_max_deviation_pct"] = statistics.median(raw), max(raw)
+    lag = [x["lag_corrected_deviation_pct"] for x in out["samples"] if "lag_corrected_deviation_pct" in x]
+    use_lag = len(lag) >= 3
+    devs = lag if use_lag else raw
+    out["basis"] = "lag_corrected (swap price at the moment the feed last updated)" if use_lag else "raw (same block; feed update time unknown)"
     out["median_deviation_pct"], out["max_deviation_pct"] = statistics.median(devs), max(devs)
-    out["criterion"] = "pass if >=3 samples, median <= 0.5% and max <= 1.5% (Chainlink only updates on 0.5% moves or its heartbeat)"
+    out["criterion"] = "pass if >=3 samples, median <= 0.5% and max <= 1.5% on the stated basis (Chainlink only updates on 0.5% moves or its heartbeat)"
     out["status"] = "pass" if len(devs) >= 3 and out["median_deviation_pct"] <= 0.5 and out["max_deviation_pct"] <= 1.5 else "fail"
     return out
+
+
+def eth_price_by_pool(dsn, chain, pools, swaps, cfg, dec, series):
+    """DIAGNOSTIC: which WETH/stable pool's execution prices sit away from the (causal) series? A pool with a high fee tier or thin liquidity
+    shows a systematic offset; reported per pool (address prefix, fee, points, median and 95th-percentile absolute deviation in %)."""
+    per = defaultdict(list)
+    for sw in swaps:
+        p = pools.get(sw["pool"])
+        if p is None:
+            continue
+        px = market.eth_price_from_swap(cfg, dec, p, sw["d0"], sw["d1"])
+        ref = series.at(sw["block"], sw["log_index"] - 1) if px is not None else None
+        if px is not None and ref:
+            per[sw["pool"]].append(float((px - ref) / ref * 100))
+    out = []
+    for pool, v in per.items():
+        a = sorted(abs(x) for x in v)
+        out.append({"pool": pool[:10], "fee": pools[pool].fee, "swaps": len(v), "median_signed_dev_pct": round(statistics.median(v), 4),
+                    "median_abs_dev_pct": round(a[len(a) // 2], 4), "p95_abs_dev_pct": round(a[int(len(a) * 0.95)], 4)})
+    return sorted(out, key=lambda r: -r["swaps"])
 
 
 def verify_with_second_provider(ver, dsn, chain, tokens):
@@ -402,7 +438,12 @@ def main():
     val = market.Valuation(cfg, dec, series)
     rep["eth_series"] = {"points": len(series.pts), "outliers_dropped": dropped,
                          "min": float(min(p[1] for p in series.pts)) if series.pts else None, "max": float(max(p[1] for p in series.pts)) if series.pts else None}
-    rep["chainlink"] = step(rep, "chainlink_check", lambda: chainlink_check(prim, cfg, series, prim.head())) or {"status": "error"}
+    def block_at_ts(ts):
+        r = q(dsn, "SELECT block_number FROM chain_blocks WHERE chain=%s AND canonical AND block_ts <= %s ORDER BY block_number DESC LIMIT 1", LABEL, ts)
+        first = q(dsn, "SELECT min(block_number) m FROM chain_blocks WHERE chain=%s AND canonical", LABEL)[0]["m"]
+        return r[0]["block_number"] if r and first is not None and r[0]["block_number"] > first else None
+    rep["chainlink"] = step(rep, "chainlink_check", lambda: chainlink_check(prim, cfg, series, prim.head(), block_at_ts)) or {"status": "error"}
+    rep["eth_price_by_pool"] = step(rep, "eth_price_by_pool", lambda: eth_price_by_pool(dsn, LABEL, pool_objs, swaps_all, cfg, dec, series))
 
     mk = lambda: FailoverSource([JsonRpcSource(urls[n], timeout=30, retries=6, backoff=1.0) for n in order], labels=order)  # noqa: E731
     # tail of the window first: the balance-state check only works while the node still serves state for those blocks

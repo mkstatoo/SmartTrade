@@ -29,3 +29,11 @@ A deliberate look-ahead mutation (selecting by the future return) produced 3 fal
 ## Known limits
 Only wallets that trade from their own address (≈ 29 % of USD volume) are visible; windows between runs may have small gaps if a run fails; marks for
 unrealized PnL are last execution prices (not used in the verdict); no slippage model beyond the fixed haircuts.
+
+## First collection attempt (2026-10-30) — what went wrong and what changed
+The first scheduled-style run failed its own integrity check: the swap-derived ETH price differed from Chainlink by median 1.1 % / max 1.4 % (criterion: ≤ 0.5 % / ≤ 1.5 %)
+in a fast market (ETH series ranged ≈ 2 198 – 3 130 USD inside the window; cross-pool token price deviation up to 10.8 %). Chainlink only updates on a 0.5 % move or its
+heartbeat, so a lagging feed is plausible, but that was NOT proven. Changes: the check now also compares the swap price at the moment of the feed's own update
+(lag-corrected; decides pass/fail when available) and the report lists, per WETH/stable pool, how far its prices sit from the series (`eth_price_by_pool`), so a
+high-fee or thin pool polluting the ETH price becomes visible. A run whose integrity checks fail is NOT stored in the history. The trade history also did not get
+stored in that run because the git identity was missing in the storing step (fixed).

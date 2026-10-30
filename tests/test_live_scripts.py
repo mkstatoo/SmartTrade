@@ -136,6 +136,7 @@ def test_market_run_end_to_end_with_independent_checks(tmp_path):
         rep = json.loads((tmp_path / "market_run.json").read_text())
         assert rep["chainlink"]["status"] == "pass" and rep["second_provider"]["passed"] is True
         assert rep["state_check"]["status"] == "pass" and rep["state_check"]["checked"] >= 10 and rep["state_check"]["match_rate"] >= 0.9
+        assert rep["eth_price_by_pool"] and all({"pool", "fee", "swaps", "median_abs_dev_pct"} <= set(x) for x in rep["eth_price_by_pool"])
         te = rep["trade_export"]
         assert te["trades"] == rep["trades"]["trades"] and (tmp_path / "trades_ethereum.jsonl.gz").exists()
         import importlib.util as _u
@@ -228,3 +229,44 @@ def test_equal_range_prefers_private_endpoint_and_wider_range_still_wins(tmp_pat
         assert json.loads((tmp_path / "selection.json").read_text())["ethereum"]["primary"] == "pub"
     finally:
         sp.close(); sq.close()
+
+
+def _chainlink_stub(price, updated_at, decimals=8):
+    from app.chain import market as _mk
+
+    class Rpc:
+        def call(self, to, data, block=None):
+            if data == _mk.SEL["feed_decimals"]:
+                return "0x" + format(decimals, "064x")
+            return "0x" + "".join(format(x, "064x") for x in (1, int(price * 10 ** decimals), 0, updated_at, 1))
+    return Rpc()
+
+
+def _load_market_run():
+    import importlib.util as u
+    sp = u.spec_from_file_location("market_run_mod", ROOT / "scripts" / "market_run.py")
+    m = u.module_from_spec(sp)
+    sp.loader.exec_module(m)
+    return m
+
+
+def test_chainlink_check_compares_the_same_moment_when_the_feed_is_old():
+    """Fast market: the feed last updated at block 100 (price 3000) while swaps moved on to 3100 by block 200. Raw comparison differs by 3.3 %;
+    compared at the moment of the feed's own update the prices agree. A feed that is simply WRONG still fails on the lag-corrected basis."""
+    from decimal import Decimal as Dc
+    from app.chain import market as mk
+    mr = _load_market_run()
+    cfg = mk.CHAINS["ethereum"]
+    ser = mk.EthSeries()
+    for b in range(90, 110):
+        ser.add(b, 0, Dc(3000))
+    for b in range(110, 210):
+        ser.add(b, 0, Dc(3000) + Dc(b - 110))
+    ser.finalize()
+    at_ts = lambda ts: {1000: 100}.get(ts)                      # noqa: E731
+    ok = mr.chainlink_check(_chainlink_stub(3000, 1000), cfg, ser, 215, at_ts)
+    assert ok["status"] == "pass" and ok["basis"].startswith("lag_corrected") and ok["raw_median_deviation_pct"] > 2.5
+    wrong = mr.chainlink_check(_chainlink_stub(3300, 1000), cfg, ser, 215, at_ts)
+    assert wrong["status"] == "fail"
+    unknown_age = mr.chainlink_check(_chainlink_stub(3000, 1000), cfg, ser, 215, lambda ts: None)
+    assert unknown_age["status"] == "fail" and unknown_age["basis"].startswith("raw")     # no update time known -> the strict raw check decides
