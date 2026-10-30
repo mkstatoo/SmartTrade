@@ -136,6 +136,14 @@ def test_market_run_end_to_end_with_independent_checks(tmp_path):
         rep = json.loads((tmp_path / "market_run.json").read_text())
         assert rep["chainlink"]["status"] == "pass" and rep["second_provider"]["passed"] is True
         assert rep["state_check"]["status"] == "pass" and rep["state_check"]["checked"] >= 10 and rep["state_check"]["match_rate"] >= 0.9
+        te = rep["trade_export"]
+        assert te["trades"] == rep["trades"]["trades"] and (tmp_path / "trades_ethereum.jsonl.gz").exists()
+        import importlib.util as _u
+        _s = _u.spec_from_file_location("aggregate", ROOT / "scripts" / "aggregate.py")
+        _m = _u.module_from_spec(_s); _s.loader.exec_module(_m)
+        _trades, _runs, _conf = _m.load_runs([str(tmp_path / "trades_ethereum.jsonl.gz")])
+        assert len(_trades) == te["trades"] and _conf == 0 and _runs[0]["method_version"] >= 1
+        assert {x["c"] for x in _trades} <= {"confirmed", "mismatch"} and "127.0.0.1" not in json.dumps(_trades)
         vc = rep["volume_coverage"]
         assert vc["priced_swaps_usd_total"] > 0 and abs(sum(c["share"] for c in vc["by_class"].values()) - 1) < 0.01
         assert vc["by_class"]["attributed_to_a_wallet"]["share"] > 0 and any(k.startswith("skipped:") for k in vc["by_class"])

@@ -164,6 +164,21 @@ def volume_coverage(dsn, chain, swaps, pools, val):
             "note": "volume-weighted: the share of traded USD whose wallet we know; txs counted without weights would overstate it"}
 
 
+def export_trades(dsn, chain, path, meta):
+    """Compact, append-only record of this run's trades (header line + one JSON object per trade) for scripts/aggregate.py, which merges
+    many runs into one longer history. Numbers are strings (exact decimals); nothing here is an endpoint or a secret."""
+    import gzip
+    rows = q(dsn, "SELECT tx_hash, block_number, ts, wallet, token, side, qty, usd, price_usd, gas_usd, confidence, evidence "
+                  "FROM chain_trades_canonical WHERE chain=%s ORDER BY block_number, id", chain)
+    with gzip.open(path, "wt", encoding="utf-8") as f:
+        f.write(json.dumps({"header": meta | {"trades": len(rows)}}) + "\n")
+        for r in rows:
+            f.write(json.dumps({"tx": r["tx_hash"], "b": r["block_number"], "ts": int(r["ts"]), "w": r["wallet"], "t": r["token"], "s": r["side"],
+                                "q": str(r["qty"]), "u": str(r["usd"]), "p": str(r["price_usd"]), "g": str(r["gas_usd"]), "c": r["confidence"],
+                                "li": r["evidence"].get("first_log_index", 0), "gp": bool(r["evidence"].get("gas_priced", True))}) + "\n")
+    return {"trades": len(rows), "bytes": Path(path).stat().st_size}
+
+
 def cross_pool_prices(swaps, pools, val):
     """Same token, same 20-block bucket, two different pools: median execution prices of ALL priced swaps (attributed or not) should
     agree up to fee tiers and arbitrage lag. An independent check of the pricing path (quote conversion, decimals, direction)."""
@@ -417,6 +432,9 @@ def main():
     else:
         rep["second_provider"] = {"passed": None, "note": "no verifier provider available"}
     rep["cross_pool_prices"] = step(rep, "cross_pool_prices", lambda: cross_pool_prices(swaps_all, pool_objs, val))
+    rep["trade_export"] = step(rep, "export_trades", lambda: export_trades(
+        dsn, LABEL, out / f"trades_{CHAIN}.jsonl.gz",
+        {"chain": CHAIN, "at_utc": rep["at_utc"], "window": rep["window"], "method_version": pipeline.METHOD_VERSION, "format": 1}))
     rep["volume_coverage"] = step(rep, "volume_coverage", lambda: volume_coverage(dsn, LABEL, swaps_all, pool_objs, val))
     rep["unattributed_beneficiaries"] = step(rep, "unattributed_beneficiaries", lambda: unattributed_beneficiaries(prim, dsn, LABEL))
     rep.setdefault("state_check", {"status": "error: tail stage did not run"})

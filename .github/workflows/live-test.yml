@@ -5,6 +5,9 @@ on:
     branches: ["live-test/**"]
 permissions:
   contents: write
+concurrency:
+  group: live-chain-test
+  cancel-in-progress: false      # scheduled runs queue behind a running one instead of killing it
 jobs:
   live:
     runs-on: ubuntu-latest
@@ -57,6 +60,30 @@ jobs:
           MARKET_DISCOVERY_BLOCKS: ${{ vars.MARKET_BASE_DISCOVERY_BLOCKS || '600' }}
           MARKET_WATCH_BLOCKS: ${{ vars.MARKET_BASE_WATCH_BLOCKS || '1800' }}
         run: python scripts/market_run.py
+      - name: Store this run's trades (branch live-test-data) and re-run the walk-forward analysis
+        id: history
+        if: always()
+        continue-on-error: true
+        run: |
+          set -e
+          git config user.name "github-actions"; git config user.email "actions@users.noreply.github.com"
+          rm -rf /tmp/hist && mkdir /tmp/hist
+          if git ls-remote --exit-code --heads origin live-test-data >/dev/null 2>&1; then
+            git clone --quiet --branch live-test-data --depth 50 "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" /tmp/hist
+          else
+            git init --quiet /tmp/hist && git -C /tmp/hist checkout --quiet --orphan live-test-data
+            git -C /tmp/hist remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          fi
+          if [ -f reports/trades_ethereum.jsonl.gz ]; then
+            mkdir -p /tmp/hist/ethereum
+            cp reports/trades_ethereum.jsonl.gz "/tmp/hist/ethereum/trades_$(date -u +%Y%m%dT%H%M%SZ)_${GITHUB_SHA::7}.jsonl.gz"
+            git -C /tmp/hist add ethereum
+            git -C /tmp/hist commit --quiet -m "trades of run ${GITHUB_RUN_ID}" || true
+            for i in 1 2 3; do git -C /tmp/hist push --quiet origin live-test-data && break || { git -C /tmp/hist pull --quiet --rebase origin live-test-data; sleep 3; }; done
+          fi
+          python scripts/aggregate.py --runs /tmp/hist --out reports
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish reports to branch live-test-reports
         if: always()
         run: |
@@ -64,7 +91,7 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git checkout --orphan live-test-reports
           git rm -rf --cached . >/dev/null 2>&1 || true
-          for f in probe.md probe.json selection.json live_verify.md live_verify.json market_run.md market_run.json market_run_base.md market_run_base.json; do
+          for f in probe.md probe.json selection.json live_verify.md live_verify.json market_run.md market_run.json market_run_base.md market_run_base.json aggregate.md aggregate.json; do
             [ -f reports/$f ] && git add -f reports/$f || true     # one missing file (e.g. skipped Base step) must not drop the others
           done
           git commit -m "live test reports for ${GITHUB_SHA}" || echo "nothing to commit"
