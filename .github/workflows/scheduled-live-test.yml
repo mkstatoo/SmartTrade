@@ -1,0 +1,18 @@
+# Lives on the repository's DEFAULT branch (GitHub only fires `schedule` from there). It does nothing but start the real workflow, which
+# runs the code of the research branch. Twice a day: each run covers ~13 hours of blocks, so consecutive runs overlap slightly and the
+# aggregator merges the overlap.
+name: scheduled-live-test
+on:
+  schedule:
+    - cron: "30 2,14 * * *"
+permissions:
+  actions: write
+  contents: read
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start live-chain-test on the research branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run live-test.yml --repo "${GITHUB_REPOSITORY}" --ref live-test/market-attribution
