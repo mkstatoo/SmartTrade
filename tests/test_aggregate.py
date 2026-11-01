@@ -101,17 +101,22 @@ def write(path, trades, window=(0, 1)):
             f.write(json.dumps(t) + "\n")
 
 
-def test_overlapping_runs_are_merged_once_and_contradictions_counted(tmp_path):
+def test_overlapping_runs_are_merged_once_and_disagreements_quarantined(tmp_path):
     base = synthetic(7, wallets=50, rounds=3)
     half = len(base) // 2
-    write(tmp_path / "trades_a.jsonl.gz", base[: half + 20])
-    write(tmp_path / "trades_b.jsonl.gz", base[half - 20:])            # 40 trades appear in both runs
-    merged, runs, conflicts = agg.load_runs([str(tmp_path / "trades_a.jsonl.gz"), str(tmp_path / "trades_b.jsonl.gz")])
-    assert len(merged) == len(base) and conflicts == 0 and len(runs) == 2
-    bad = [dict(t, u="1.0") if i == 0 else t for i, t in enumerate(base[half - 20:])]
-    write(tmp_path / "trades_c.jsonl.gz", bad)
-    _, _, conflicts = agg.load_runs([str(tmp_path / "trades_a.jsonl.gz"), str(tmp_path / "trades_c.jsonl.gz")])
-    assert conflicts == 1
+    write(tmp_path / "trades_a.jsonl.gz", base[: half + 20], window=(100, 200))
+    write(tmp_path / "trades_b.jsonl.gz", base[half - 20:], window=(150, 300))            # 40 trades appear in both runs
+    pa, pb = str(tmp_path / "trades_a.jsonl.gz"), str(tmp_path / "trades_b.jsonl.gz")
+    merged, runs, st = agg.load_runs([pa, pb])
+    assert len(merged) == len(base) and st["quarantined"] == 0 and st["agreeing_exact"] == 40 and len(runs) == 2 and st["gaps"] == []
+    # a 0.1 % price difference with the same quantity is minor: first copy kept; a 3x difference is a disagreement: trade excluded
+    tweak = [dict(t, u=str(float(t["u"]) * 1.001)) if i == 0 else (dict(t, u=str(float(t["u"]) * 3)) if i == 1 else t)
+             for i, t in enumerate(base[half - 20:])]
+    write(tmp_path / "trades_c.jsonl.gz", tweak, window=(150, 300))
+    merged, _, st = agg.load_runs([pa, str(tmp_path / "trades_c.jsonl.gz")])
+    assert st["differing_minor"] == 1 and st["quarantined"] == 1 and len(merged) == len(base) - 1
+    gap_runs = [{"window": {"watch": [100, 200]}}, {"window": {"watch": [150, 260]}}, {"window": {"watch": [300, 400]}}]
+    assert agg.coverage_gaps(gap_runs) == [{"from_block": 261, "to_block": 299, "blocks": 39}]
 
 
 def test_cli_end_to_end(tmp_path):

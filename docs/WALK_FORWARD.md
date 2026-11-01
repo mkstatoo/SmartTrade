@@ -46,3 +46,13 @@ after seeing the number**; it is principled but it is a post-hoc adjustment and 
 `eth_price_by_pool` showed two clean pools (median |dev| 0.04 % and 0.09 %) and one pool (fee 500, ~6 000 swaps) with a 95th-percentile deviation of 3.6 %: its
 extreme prints are what the causal outlier filter drops (482 points dropped); the filter, not the pool, protects the series. The ETH series ranged ≈ 2 180–2 830 USD in
 this window (≈ 2 200–3 130 in the previous one), which looks like a large real move but could NOT be verified against a historical feed (the node serves state for ~128 blocks only).
+
+## Review 2026-11-02 (3.3 days of history, 7 stored runs)
+* 7 runs stored, 24 906 trades (22 114 confirmed after merge: 22 087). Verdict still `insufficient_data` (span 3.3 d; 26 eligible wallets, 3 selected).
+* Overlap handling changed after looking at the data: 3 030 trades appeared in two runs; 2 056 identical, 909 differed by < 1 % at the same quantity (ETH series state), but
+  **65 differed massively (up to 2 680x)**: the watch list differs between runs, so a multi-pool transaction can be valued from different legs. These are now quarantined
+  (excluded), not averaged; the merge statistics are reported in `aggregate.json` (`merge`).
+* Coverage gaps (failed or skipped runs) are now listed: 264 blocks (~53 min) and 785 blocks (~2.6 h) so far. A position bought before a gap and sold inside it looks open.
+* Scheduled runs were shown red because the Base live-verify step hit a public-endpoint 429; Ethereum data were fine and stored. Base verification is switched off (`LIVE_CHAINS=ethereum`).
+* Open risk: the eligibility rule (≥ 5 fully known closed trades before the split) yielded 26 wallets after 1.6 days of period A; reaching the pre-registered 100 may need 2-3 weeks or may
+  never happen if activity is concentrated. The rule will NOT be loosened to reach a verdict.

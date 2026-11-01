@@ -87,7 +87,10 @@ def main():
     dsn = os.environ["DATABASE_URL"]
     migrate(dsn)
     reports = []
+    only = {c for c in os.getenv("LIVE_CHAINS", "").split(",") if c}       # empty = every chain in selection.json
     for chain, s in sel.items():
+        if only and chain not in only:
+            continue
         try:
             reports.append(check_chain(chain, s, cfg, dsn))
         except Exception as exc:  # noqa: BLE001

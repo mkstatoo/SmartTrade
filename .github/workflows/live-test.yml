@@ -41,6 +41,8 @@ jobs:
       - name: Real ingestion + independent cross-check
         id: live
         continue-on-error: true
+        env:
+          LIVE_CHAINS: ethereum        # Base is paused (only free public endpoints; its 429s made every scheduled run look red)
         run: python scripts/live_verify.py
       - name: Wallet attribution on real Ethereum data
         id: market

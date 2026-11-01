@@ -35,9 +35,15 @@ PERMUTATIONS = 20000
 SEED = 20261012
 
 
+QUARANTINE_REL = 0.01     # two runs that price the SAME trade more than 1 % apart disagree about it: the trade is excluded, not averaged
+
+
 def load_runs(paths):
-    """-> (trades, runs, conflicts). Trades are merged across overlapping runs; first occurrence wins."""
-    merged, runs, conflicts = {}, [], 0
+    """-> (trades, runs, stats). Overlapping runs are merged by (tx, token, wallet, side); the first copy wins when the copies agree.
+    Copies whose USD value differs by more than QUARANTINE_REL are quarantined (excluded entirely): the watch list differs between runs, so a
+    multi-pool transaction can be valued from different legs, and picking either copy would be a guess. stats counts everything."""
+    merged, runs, bad = {}, [], set()
+    st = {"duplicates": 0, "agreeing_exact": 0, "differing_minor": 0, "quarantined": 0}
     for p in sorted(paths):
         with gzip.open(p, "rt", encoding="utf-8") as f:
             head = json.loads(f.readline())["header"]
@@ -45,15 +51,40 @@ def load_runs(paths):
             for line in f:
                 t = json.loads(line)
                 k = (t["tx"], t["t"], t["w"], t["s"])
+                n += 1
+                if k in bad:
+                    continue
                 old = merged.get(k)
                 if old is None:
                     merged[k] = t
-                elif (old["q"], old["u"]) != (t["q"], t["u"]):
-                    conflicts += 1
-                n += 1
+                    continue
+                st["duplicates"] += 1
+                if (old["q"], old["u"]) == (t["q"], t["u"]):
+                    st["agreeing_exact"] += 1
+                    continue
+                ou, nu = float(old["u"]), float(t["u"])
+                same_qty = old["q"] == t["q"]
+                if same_qty and abs(ou - nu) <= QUARANTINE_REL * max(ou, nu, 1e-12):
+                    st["differing_minor"] += 1          # same quantity, price differs in the 3rd decimal (ETH series state): keep the first
+                else:
+                    bad.add(k)
+                    merged.pop(k, None)
+                    st["quarantined"] += 1
             runs.append({"file": Path(p).name, "trades": n, "window": head.get("window"), "chain": head.get("chain"),
                          "method_version": head.get("method_version")})
-    return sorted(merged.values(), key=lambda t: (t["ts"], t["b"], t["li"])), runs, conflicts
+    st["gaps"] = coverage_gaps(runs)
+    return sorted(merged.values(), key=lambda t: (t["ts"], t["b"], t["li"])), runs, st
+
+
+def coverage_gaps(runs):
+    """Block ranges inside the overall span that no run's watch window covers (a failed or skipped run leaves one)."""
+    iv = sorted((r["window"]["watch"][0], r["window"]["watch"][1]) for r in runs if r.get("window") and r["window"].get("watch"))
+    gaps, end = [], None
+    for a, b in iv:
+        if end is not None and a > end + 1:
+            gaps.append({"from_block": end + 1, "to_block": a - 1, "blocks": a - end - 1})
+        end = b if end is None else max(end, b)
+    return gaps
 
 
 def newest_method_only(paths):
@@ -168,9 +199,9 @@ def main():
         print("no trade exports found", file=sys.stderr)
         return 2
     paths, ignored = newest_method_only(paths)
-    trades, runs, conflicts = load_runs(paths)
+    trades, runs, merge_stats = load_runs(paths)
     res = analyse(trades, min_closed=a.min_closed, top=a.top, split_ts=a.split_ts)
-    rep = {"runs": len(runs), "conflicting_duplicates": conflicts, "ignored_older_method_files": ignored, "result": res, "files": runs}
+    rep = {"runs": len(runs), "merge": merge_stats, "ignored_older_method_files": ignored, "result": res, "files": runs}
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     (out / "aggregate.json").write_text(json.dumps(rep, indent=1, default=str))

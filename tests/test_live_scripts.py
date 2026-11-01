@@ -143,7 +143,7 @@ def test_market_run_end_to_end_with_independent_checks(tmp_path):
         _s = _u.spec_from_file_location("aggregate", ROOT / "scripts" / "aggregate.py")
         _m = _u.module_from_spec(_s); _s.loader.exec_module(_m)
         _trades, _runs, _conf = _m.load_runs([str(tmp_path / "trades_ethereum.jsonl.gz")])
-        assert len(_trades) == te["trades"] and _conf == 0 and _runs[0]["method_version"] >= 1
+        assert len(_trades) == te["trades"] and _conf["quarantined"] == 0 and _runs[0]["method_version"] >= 1
         assert {x["c"] for x in _trades} <= {"confirmed", "mismatch"} and "127.0.0.1" not in json.dumps(_trades)
         vc = rep["volume_coverage"]
         assert vc["priced_swaps_usd_total"] > 0 and abs(sum(c["share"] for c in vc["by_class"].values()) - 1) < 0.01
