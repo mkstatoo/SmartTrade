@@ -1,0 +1,409 @@
+{
+ "at_utc": "2026-11-01 21:23:17",
+ "results": [
+  {
+   "chain": "ethereum",
+   "provider": "publicnode",
+   "ok": true,
+   "errors": [],
+   "host": "https://ethereum-rpc.publicnode.com",
+   "head": 26322563,
+   "latency_p50_ms": 303,
+   "latency_p95_ms": 317,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 1.0,
+     "logs": 1104,
+     "error": null
+    },
+    "10": {
+     "ok": false,
+     "seconds": 0.3,
+     "logs": null,
+     "error": "RpcError: Please specify an address in your request or, to remove restrictions, order a dedicated full node here: https://www.alln"
+    }
+   },
+   "max_log_range_blocks": 1,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   },
+   "agreement_block_window": [
+    26322463,
+    26322465
+   ],
+   "agrees_with_majority": true,
+   "agreement_log_count": 1633
+  },
+  {
+   "chain": "ethereum",
+   "provider": "llamarpc",
+   "ok": false,
+   "errors": [
+    "RpcError: HTTP 525: {\"type\":\"https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-5xx-"
+   ],
+   "host": "https://eth.llamarpc.com"
+  },
+  {
+   "chain": "ethereum",
+   "provider": "cloudflare",
+   "ok": false,
+   "errors": [
+    "RpcError: Cannot fulfill request"
+   ],
+   "host": "https://cloudflare-eth.com"
+  },
+  {
+   "chain": "ethereum",
+   "provider": "ankr",
+   "ok": false,
+   "errors": [
+    "RpcError: malformed or mismatched JSON-RPC response: {\"jsonrpc\": \"2.0\", \"error\": {\"code\": -32000, \"message\": \"Unauthorized: You mu"
+   ],
+   "host": "https://rpc.ankr.com"
+  },
+  {
+   "chain": "ethereum",
+   "provider": "drpc",
+   "ok": true,
+   "errors": [],
+   "host": "https://eth.drpc.org",
+   "head": 26322565,
+   "latency_p50_ms": 311,
+   "latency_p95_ms": 395,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 0.49,
+     "logs": 403,
+     "error": null
+    },
+    "10": {
+     "ok": true,
+     "seconds": 3.26,
+     "logs": 4394,
+     "error": null
+    },
+    "100": {
+     "ok": false,
+     "seconds": 0.36,
+     "logs": null,
+     "error": "RpcError: query exceeds max results 20000, retry with the range 26322065-26322110"
+    }
+   },
+   "max_log_range_blocks": 10,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   },
+   "agreement_block_window": [
+    26322463,
+    26322465
+   ],
+   "agrees_with_majority": true,
+   "agreement_log_count": 1633
+  },
+  {
+   "chain": "ethereum",
+   "provider": "1rpc",
+   "ok": false,
+   "errors": [
+    "RpcError: HTTP 503: {\"jsonrpc\":\"2.0\",\"result\":{\"code\":503,\"message\":\"server unavailable\"},\"id\":2}"
+   ],
+   "host": "https://1rpc.io"
+  },
+  {
+   "chain": "ethereum",
+   "provider": "private-1",
+   "ok": true,
+   "errors": [],
+   "host": "(secret)",
+   "head": 26322567,
+   "latency_p50_ms": 365,
+   "latency_p95_ms": 422,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 0.89,
+     "logs": 472,
+     "error": null
+    },
+    "10": {
+     "ok": false,
+     "seconds": 0.37,
+     "logs": null,
+     "error": "RpcError: HTTP 413: {\"jsonrpc\":\"2.0\",\"id\":54,\"error\":{\"code\":-32615,\"message\":\"eth_getLogs is limited to a 5 range, upgr"
+    }
+   },
+   "max_log_range_blocks": 1,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   },
+   "agreement_block_window": [
+    26322463,
+    26322465
+   ],
+   "agrees_with_majority": true,
+   "agreement_log_count": 1633
+  },
+  {
+   "chain": "ethereum",
+   "provider": "private-2",
+   "ok": true,
+   "errors": [],
+   "host": "(secret)",
+   "head": 26322569,
+   "latency_p50_ms": 365,
+   "latency_p95_ms": 425,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 0.75,
+     "logs": 209,
+     "error": null
+    },
+    "10": {
+     "ok": false,
+     "seconds": 0.37,
+     "logs": null,
+     "error": "RpcError: HTTP 413: {\"jsonrpc\":\"2.0\",\"id\":54,\"error\":{\"code\":-32615,\"message\":\"eth_getLogs is limited to a 5 range, upgr"
+    }
+   },
+   "max_log_range_blocks": 1,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   },
+   "agreement_block_window": [
+    26322463,
+    26322465
+   ],
+   "agrees_with_majority": true,
+   "agreement_log_count": 1633
+  },
+  {
+   "chain": "base",
+   "provider": "base-official",
+   "ok": false,
+   "errors": [],
+   "host": "https://mainnet.base.org",
+   "head": 53389345,
+   "latency_p50_ms": 136,
+   "latency_p95_ms": 178,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": false,
+     "seconds": 0.17,
+     "logs": null,
+     "error": "RpcError: HTTP 429: {\"jsonrpc\":\"2.0\",\"id\":53,\"error\":{\"code\":-32011,\"message\":\"request limit reached\"}}"
+    }
+   },
+   "max_log_range_blocks": 0,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   }
+  },
+  {
+   "chain": "base",
+   "provider": "publicnode",
+   "ok": true,
+   "errors": [],
+   "host": "https://base-rpc.publicnode.com",
+   "head": 53389349,
+   "latency_p50_ms": 309,
+   "latency_p95_ms": 498,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 0.67,
+     "logs": 175,
+     "error": null
+    },
+    "10": {
+     "ok": false,
+     "seconds": 0.31,
+     "logs": null,
+     "error": "RpcError: Please specify an address in your request or, to remove restrictions, order a dedicated full node here: https://www.alln"
+    }
+   },
+   "max_log_range_blocks": 1,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   },
+   "agreement_block_window": [
+    53389249,
+    53389251
+   ],
+   "agrees_with_majority": true,
+   "agreement_log_count": 562
+  },
+  {
+   "chain": "base",
+   "provider": "llamarpc",
+   "ok": false,
+   "errors": [
+    "RpcError: HTTP 525: {\"type\":\"https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-5xx-"
+   ],
+   "host": "https://base.llamarpc.com"
+  },
+  {
+   "chain": "base",
+   "provider": "ankr",
+   "ok": false,
+   "errors": [
+    "RpcError: malformed or mismatched JSON-RPC response: {\"jsonrpc\": \"2.0\", \"error\": {\"code\": -32000, \"message\": \"Unauthorized: You mu"
+   ],
+   "host": "https://rpc.ankr.com"
+  },
+  {
+   "chain": "base",
+   "provider": "drpc",
+   "ok": true,
+   "errors": [],
+   "host": "https://base.drpc.org",
+   "head": 53389359,
+   "latency_p50_ms": 311,
+   "latency_p95_ms": 315,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 0.43,
+     "logs": 184,
+     "error": null
+    },
+    "10": {
+     "ok": true,
+     "seconds": 0.61,
+     "logs": 1353,
+     "error": null
+    },
+    "100": {
+     "ok": false,
+     "seconds": 0.38,
+     "logs": null,
+     "error": "RpcError: query exceeds max results 20000, retry with the range 53388859-53388927"
+    }
+   },
+   "max_log_range_blocks": 10,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   },
+   "agreement_block_window": [
+    53389249,
+    53389251
+   ],
+   "agrees_with_majority": true,
+   "agreement_log_count": 562
+  },
+  {
+   "chain": "base",
+   "provider": "1rpc",
+   "ok": false,
+   "errors": [
+    "headers: RpcError: HTTP 410: {\"error\":\"This endpoint has been discontinued.\",\"message\":\"For an up to date list of available endpo"
+   ],
+   "host": "https://1rpc.io",
+   "head": 53389369,
+   "latency_p50_ms": 1411,
+   "latency_p95_ms": 1534,
+   "burst_30_errors": 1,
+   "headers_linked": false,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 1.64,
+     "logs": 200,
+     "error": null
+    },
+    "10": {
+     "ok": true,
+     "seconds": 5.34,
+     "logs": 1739,
+     "error": null
+    },
+    "100": {
+     "ok": false,
+     "seconds": 1.69,
+     "logs": null,
+     "error": "RpcError: eth_getLogs is limited to 0 - 50 blocks range"
+    }
+   },
+   "max_log_range_blocks": 10,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   }
+  },
+  {
+   "chain": "base",
+   "provider": "private-1",
+   "ok": true,
+   "errors": [],
+   "host": "(secret)",
+   "head": 53389403,
+   "latency_p50_ms": 360,
+   "latency_p95_ms": 734,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 0.81,
+     "logs": 339,
+     "error": null
+    },
+    "10": {
+     "ok": true,
+     "seconds": 1.24,
+     "logs": 3201,
+     "error": null
+    },
+    "100": {
+     "ok": false,
+     "seconds": 0.39,
+     "logs": null,
+     "error": "RpcError: query exceeds max results 20000, retry with the range 53388903-53388984"
+    }
+   },
+   "max_log_range_blocks": 10,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   },
+   "agreement_block_window": [
+    53389249,
+    53389251
+   ],
+   "agrees_with_majority": true,
+   "agreement_log_count": 562
+  }
+ ]
+}
