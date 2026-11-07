@@ -1,0 +1,30 @@
+{
+ "ethereum": {
+  "ranked": [
+   "drpc",
+   "private-2",
+   "private-1",
+   "publicnode"
+  ],
+  "primary": "drpc",
+  "verifier": "private-2",
+  "ranges": {
+   "drpc": 10,
+   "private-2": 1,
+   "private-1": 1,
+   "publicnode": 1
+  }
+ },
+ "base": {
+  "ranked": [
+   "private-1",
+   "publicnode"
+  ],
+  "primary": "private-1",
+  "verifier": "publicnode",
+  "ranges": {
+   "private-1": 500,
+   "publicnode": 1
+  }
+ }
+}

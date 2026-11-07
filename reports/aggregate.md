@@ -1,0 +1,360 @@
+# Walk-forward over merged runs
+
+```json
+{
+ "runs": 17,
+ "merge": {
+  "duplicates": 5627,
+  "agreeing_exact": 4527,
+  "differing_minor": 1028,
+  "quarantined": 72,
+  "gaps": [
+   {
+    "from_block": 26307753,
+    "to_block": 26308016,
+    "blocks": 264
+   },
+   {
+    "from_block": 26314662,
+    "to_block": 26315446,
+    "blocks": 785
+   },
+   {
+    "from_block": 26321961,
+    "to_block": 26322708,
+    "blocks": 748
+   },
+   {
+    "from_block": 26326353,
+    "to_block": 26326591,
+    "blocks": 239
+   },
+   {
+    "from_block": 26336734,
+    "to_block": 26336991,
+    "blocks": 258
+   },
+   {
+    "from_block": 26344007,
+    "to_block": 26347621,
+    "blocks": 3615
+   },
+   {
+    "from_block": 26351276,
+    "to_block": 26354605,
+    "blocks": 3330
+   },
+   {
+    "from_block": 26358254,
+    "to_block": 26358344,
+    "blocks": 91
+   }
+  ]
+ },
+ "ignored_older_method_files": [],
+ "result": {
+  "trades_total": 60552,
+  "trades_confirmed": 55395,
+  "first_ts": 1793279411,
+  "last_ts": 1794050123,
+  "span_days": 8.92,
+  "split_ts": 1793664767,
+  "eligible_wallets": 56,
+  "wallets_positive_in_A": 27,
+  "selected": 6,
+  "verdict": "insufficient_data",
+  "reason": "history shorter than 14 days; fewer than 100 eligible wallets; fewer than 10 selected wallets"
+ },
+ "files": [
+  {
+   "file": "trades_20261030T014206Z_4dc8248.jsonl.gz",
+   "trades": 4739,
+   "window": {
+    "head": 26302213,
+    "discovery": [
+     26298299,
+     26298598
+    ],
+    "watch": [
+     26298599,
+     26302257
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  },
+  {
+   "file": "trades_20261030T090922Z_4dc8248.jsonl.gz",
+   "trades": 2440,
+   "window": {
+    "head": 26304513,
+    "discovery": [
+     26300599,
+     26300898
+    ],
+    "watch": [
+     26300899,
+     26304532
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  },
+  {
+   "file": "trades_20261030T195715Z_4dc8248.jsonl.gz",
+   "trades": 3589,
+   "window": {
+    "head": 26307728,
+    "discovery": [
+     26303814,
+     26304113
+    ],
+    "watch": [
+     26304114,
+     26307752
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  },
+  {
+   "file": "trades_20261031T090616Z_4dc8248.jsonl.gz",
+   "trades": 3476,
+   "window": {
+    "head": 26311631,
+    "discovery": [
+     26307717,
+     26308016
+    ],
+    "watch": [
+     26308017,
+     26311664
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  },
+  {
+   "file": "trades_20261031T191140Z_4dc8248.jsonl.gz",
+   "trades": 4293,
+   "window": {
+    "head": 26314626,
+    "discovery": [
+     26310712,
+     26311011
+    ],
+    "watch": [
+     26311012,
+     26314661
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  },
+  {
+   "file": "trades_20261101T100136Z_4dc8248.jsonl.gz",
+   "trades": 4489,
+   "window": {
+    "head": 26319061,
+    "discovery": [
+     26315147,
+     26315446
+    ],
+    "watch": [
+     26315447,
+     26319113
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  },
+  {
+   "file": "trades_20261101T193138Z_4dc8248.jsonl.gz",
+   "trades": 4910,
+   "window": {
+    "head": 26321917,
+    "discovery": [
+     26318003,
+     26318302
+    ],
+    "watch": [
+     26318303,
+     26321960
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  },
+  {
+   "file": "trades_20261102T100953Z_a14861a.jsonl.gz",
+   "trades": 5829,
+   "window": {
+    "head": 26326323,
+    "discovery": [
+     26322409,
+     26322708
+    ],
+    "watch": [
+     26322709,
+     26326352
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  },
+  {
+   "file": "trades_20261102T230900Z_a14861a.jsonl.gz",
+   "trades": 4115,
+   "window": {
+    "head": 26330206,
+    "discovery": [
+     26326292,
+     26326591
+    ],
+    "watch": [
+     26326592,
+     26330226
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  },
+  {
+   "file": "trades_20261103T100327Z_a14861a.jsonl.gz",
+   "trades": 5789,
+   "window": {
+    "head": 26333497,
+    "discovery": [
+     26329583,
+     26329882
+    ],
+    "watch": [
+     26329883,
+     26333509
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  },
+  {
+   "file": "trades_20261103T205202Z_a14861a.jsonl.gz",
+   "trades": 4135,
+   "window": {
+    "head": 26336707,
+    "discovery": [
+     26332793,
+     26333092
+    ],
+    "watch": [
+     26333093,
+     26336733
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  },
+  {
+   "file": "trades_20261104T095830Z_a14861a.jsonl.gz",
+   "trades": 4221,
+   "window": {
+    "head": 26340606,
+    "discovery": [
+     26336692,
+     26336991
+    ],
+    "watch": [
+     26336992,
+     26340640
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  },
+  {
+   "file": "trades_20261104T211444Z_a14861a.jsonl.gz",
+   "trades": 2797,
+   "window": {
+    "head": 26343973,
+    "discovery": [
+     26340059,
+     26340358
+    ],
+    "watch": [
+     26340359,
+     26344006
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  },
+  {
+   "file": "trades_20261105T212823Z_a14861a.jsonl.gz",
+   "trades": 4669,
+   "window": {
+    "head": 26351236,
+    "discovery": [
+     26347322,
+     26347621
+    ],
+    "watch": [
+     26347622,
+     26351275
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  },
+  {
+   "file": "trades_20261106T204829Z_a14861a.jsonl.gz",
+   "trades": 2622,
+   "window": {
+    "head": 26358220,
+    "discovery": [
+     26354306,
+     26354605
+    ],
+    "watch": [
+     26354606,
+     26358253
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  },
+  {
+   "file": "trades_20261107T091423Z_a14861a.jsonl.gz",
+   "trades": 2017,
+   "window": {
+    "head": 26361959,
+    "discovery": [
+     26358045,
+     26358344
+    ],
+    "watch": [
+     26358345,
+     26361978
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  },
+  {
+   "file": "trades_20261107T112249Z_523879c.jsonl.gz",
+   "trades": 2121,
+   "window": {
+    "head": 26362585,
+    "discovery": [
+     26358671,
+     26358970
+    ],
+    "watch": [
+     26358971,
+     26362611
+    ]
+   },
+   "chain": "ethereum",
+   "method_version": 1
+  }
+ ]
+}
+```
