@@ -76,6 +76,21 @@ jobs:
             git init --quiet /tmp/hist && git -C /tmp/hist checkout --quiet --orphan live-test-data
             git -C /tmp/hist remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           fi
+          # a compact status line of EVERY run (also failed ones) is kept, so the reason for a gap in the data can be read later
+          mkdir -p /tmp/hist/status
+          python - <<'PY'
+          import json, os, time
+          try:
+              r = json.load(open("reports/market_run.json"))
+          except Exception as e:  # noqa: BLE001
+              r = {"error": f"no market_run.json: {type(e).__name__}"}
+          st = {"at_utc": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), "run_id": os.environ.get("GITHUB_RUN_ID"),
+                "primary": r.get("primary"), "failover": r.get("failover"), "window": r.get("window"), "integrity": r.get("integrity"),
+                "steps_failed": {k: v.get("error") for k, v in (r.get("steps") or {}).items() if not v.get("ok")}, "skipped": r.get("skipped"),
+                "error": r.get("error"), "headline": r.get("headline")}
+          json.dump(st, open(f"/tmp/hist/status/{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}.json", "w"), indent=1, default=str)
+          PY
+          git -C /tmp/hist add status
           # only a run whose integrity checks all passed may enter the history; a failed run is reported, not stored
           if python - <<'PY'
           import json, sys
@@ -91,6 +106,8 @@ jobs:
             git -C /tmp/hist commit --quiet -m "trades of run ${GITHUB_RUN_ID}" || true
             for i in 1 2 3; do git -C /tmp/hist push --quiet origin live-test-data && break || { git -C /tmp/hist pull --quiet --rebase origin live-test-data; sleep 3; }; done
           fi
+          git -C /tmp/hist commit --quiet -m "status of run ${GITHUB_RUN_ID}" || true
+          for i in 1 2 3; do git -C /tmp/hist push --quiet origin live-test-data && break || { git -C /tmp/hist pull --quiet --rebase origin live-test-data; sleep 3; }; done
           python scripts/aggregate.py --runs /tmp/hist --out reports || echo "no history yet" | tee -a reports/history_status.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

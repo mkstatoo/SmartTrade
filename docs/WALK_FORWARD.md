@@ -56,3 +56,10 @@ this window (≈ 2 200–3 130 in the previous one), which looks like a large re
 * Scheduled runs were shown red because the Base live-verify step hit a public-endpoint 429; Ethereum data were fine and stored. Base verification is switched off (`LIVE_CHAINS=ethereum`).
 * Open risk: the eligibility rule (≥ 5 fully known closed trades before the split) yielded 26 wallets after 1.6 days of period A; reaching the pre-registered 100 may need 2-3 weeks or may
   never happen if activity is concentrated. The rule will NOT be loosened to reach a verdict.
+
+## Review 2026-11-07 (8.8 days of history, 16 stored runs)
+* Verdict `insufficient_data`: span 8.8 d (14 needed); eligible 56 (was 26 at 3.3 d; a rough linear extrapolation reaches 100 at ~16–17 days, not a promise);
+  27 of them positive before the split; selected 6 (= 10 % of eligible; reaches the required 10 when eligible reaches 100).
+* 59 827 trades (54 700 confirmed). Overlap merge: 4 235 duplicates, 3 159 identical, 1 008 minor, 68 quarantined.
+* **Coverage: 8 gaps, ≈ 9 200 blocks ≈ 31 h of 8.8 days (~14 %)**; the two biggest (≈ 3 600 and ≈ 3 300 blocks) are failed runs on 5 Nov. The reason is unknown: the report branch is
+  overwritten by the next run. Every run now also stores a compact status file under `status/` on `live-test-data`, failed or not.
