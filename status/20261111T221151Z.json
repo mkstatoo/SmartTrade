@@ -1,0 +1,46 @@
+{
+ "at_utc": "2026-11-11 22:11:51",
+ "run_id": "43103405651",
+ "primary": "drpc",
+ "failover": {
+  "chain": [
+   "drpc",
+   "publicnode"
+  ],
+  "switches": []
+ },
+ "window": {
+  "head": 26394401,
+  "discovery": [
+   26390487,
+   26390786
+  ],
+  "watch": [
+   26390787,
+   26394448
+  ]
+ },
+ "integrity": {
+  "steps_failed": [],
+  "receipts_inconsistent": 0,
+  "chainlink_failed": false,
+  "second_provider_failed": false,
+  "state_check_failed": false
+ },
+ "steps_failed": {},
+ "skipped": null,
+ "error": null,
+ "headline": {
+  "window blocks (discovery + watch)": "300 + 3600",
+  "pools watched": 33,
+  "receipts stored / errors / inconsistent": "20375 / 0 / 0",
+  "trades (confirmed / mismatch)": "2391 (2221 / 170)",
+  "share of swap txs that became a trade": 0.2827,
+  "chainlink check": "pass",
+  "second provider check": true,
+  "balance-state check": "pass",
+  "cross-pool price deviation (median / max %)": "0.06232899858277363 / 3.3872218197320336",
+  "wallets with a confirmed trade": 943,
+  "integrity": "no integrity problem found by the checks above"
+ }
+}
