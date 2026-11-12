@@ -136,3 +136,16 @@ def test_only_the_newest_method_version_is_used(tmp_path):
             f.write(json.dumps({"header": {"chain": "ethereum", "method_version": v}}) + "\n")
     keep, ignored = agg.newest_method_only([str(tmp_path / n) for n in ("trades_old.jsonl.gz", "trades_new1.jsonl.gz", "trades_new2.jsonl.gz")])
     assert sorted(Path(k).name for k in keep) == ["trades_new1.jsonl.gz", "trades_new2.jsonl.gz"] and ignored == ["trades_old.jsonl.gz"]
+
+
+def test_supplementary_rank_persistence_finds_planted_skill_and_not_luck_and_never_changes_the_verdict():
+    skilled = agg.analyse(synthetic(1, skilled=60), permutations=2000)
+    rp = skilled["supplementary_rank_persistence"]
+    assert rp["status"] == "computed" and rp["spearman"] > 0 and rp["p_value_one_sided"] < 0.05
+    assert rp["mean_B_return_better_half"] > rp["mean_B_return_worse_half"]
+    hits = sum(agg.analyse(synthetic(s), permutations=500)["supplementary_rank_persistence"]["p_value_one_sided"] < 0.05 for s in range(12))
+    assert hits <= 2                                                       # nominal 5 % -> ~0.6 of 12
+    short = agg.analyse(synthetic(4, wallets=60), permutations=500)
+    assert short["verdict"] == "insufficient_data" and "supplementary_rank_persistence" in short      # available although the main test cannot run
+    tiny = agg.analyse(synthetic(4, wallets=12), permutations=200)
+    assert tiny["supplementary_rank_persistence"]["status"].startswith("insufficient")

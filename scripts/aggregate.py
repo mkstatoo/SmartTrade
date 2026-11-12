@@ -120,6 +120,33 @@ def spearman(xs, ys):
     return num / den if den else None
 
 
+def rank_persistence(elig, ret_a, B, *, permutations=5000, seed=SEED, min_wallets=20):
+    """SUPPLEMENTARY (added 2026-11-13, after the main test was fixed; it never changes the verdict). Uses ALL eligible wallets that traded again after the
+    split: Spearman correlation between the return before the split and the return after it, with a permutation p-value (B returns shuffled across wallets)
+    and the mean after-split return of the better vs the worse half (ranked by the before-split return). Needs far fewer wallets than the top-10 % test
+    because nobody is thrown away, but it answers a weaker question: 'is there ANY persistence in the ranking', not 'is the top group worth copying'."""
+    both = [w for w in elig if B[w]["n"] >= 1 and B[w]["cost"] > 0]
+    if len(both) < min_wallets:
+        return {"wallets": len(both), "status": f"insufficient: fewer than {min_wallets} eligible wallets traded again after the split"}
+    xs = [ret_a[w] for w in both]
+    ys = [float(B[w]["pnl"] / B[w]["cost"]) for w in both]
+    rho = spearman(xs, ys)
+    rng = random.Random(seed + 1)
+    ge = 0
+    sh = ys[:]
+    for _ in range(permutations):
+        rng.shuffle(sh)
+        r = spearman(xs, sh)
+        if r is not None and rho is not None and r >= rho:
+            ge += 1
+    order = sorted(range(len(both)), key=lambda i: xs[i])
+    half = len(order) // 2
+    low, high = [ys[i] for i in order[:half]], [ys[i] for i in order[-half:]]
+    return {"wallets": len(both), "spearman": rho, "p_value_one_sided": (1 + ge) / (1 + permutations),
+            "mean_B_return_better_half": sum(high) / len(high), "mean_B_return_worse_half": sum(low) / len(low),
+            "status": "computed", "note": "supplementary only; does not enter the verdict; no cost haircut; return per wallet = pnl / known cost of its closed trades after the split"}
+
+
 def _entries(trades, chain):
     return [{"kind": t["s"], "ts": t["ts"], "qty": t["q"], "usd": t["u"], "fee_usd": t["g"], "token": t["t"], "chain": chain,
              "tx_hash": t["tx"], "log_index": t["li"], "block_number": t["b"]} for t in trades]
@@ -158,6 +185,7 @@ def analyse(trades, *, chain="ethereum", min_closed=5, top=20, split_ts=None, pe
     k = max(0, min(top, math.ceil(len(elig) * 0.10)))
     selected = sel_pool[:k]
     out |= {"eligible_wallets": len(elig), "wallets_positive_in_A": len(sel_pool), "selected": len(selected)}
+    out["supplementary_rank_persistence"] = rank_persistence(elig, ret_a, B, permutations=min(permutations, 5000), seed=seed)
     if out["span_days"] < 14 or len(elig) < 100 or len(selected) < 10:
         why = [m for ok, m in ((out["span_days"] >= 14, "history shorter than 14 days"), (len(elig) >= 100, "fewer than 100 eligible wallets"),
                                (len(selected) >= 10, "fewer than 10 selected wallets")) if not ok]

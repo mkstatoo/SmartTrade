@@ -63,3 +63,16 @@ this window (≈ 2 200–3 130 in the previous one), which looks like a large re
 * 59 827 trades (54 700 confirmed). Overlap merge: 4 235 duplicates, 3 159 identical, 1 008 minor, 68 quarantined.
 * **Coverage: 8 gaps, ≈ 9 200 blocks ≈ 31 h of 8.8 days (~14 %)**; the two biggest (≈ 3 600 and ≈ 3 300 blocks) are failed runs on 5 Nov. The reason is unknown: the report branch is
   overwritten by the next run. Every run now also stores a compact status file under `status/` on `live-test-data`, failed or not.
+
+## Supplementary test added 2026-11-13 (rank persistence on ALL eligible wallets)
+Added after the main test was fixed, at the user's agreement, because the top-10 % test needs ≥ 100 eligible wallets before it can speak. `supplementary_rank_persistence` in
+`aggregate.json`: Spearman correlation between the before-split and after-split return of every eligible wallet that traded again, permutation p-value (one-sided, "positive
+persistence"), and the better-half vs worse-half mean. It **never enters the verdict** and is labelled supplementary. Tests: planted skill found, pure luck ≤ 2 of 12 seeds at p < 0.05.
+
+### Review 2026-11-13 (14.4 days, 28 stored runs)
+* Main test: still `insufficient_data` — eligible 81 (100 needed), selected 9 (10 needed). Span now ≥ 14 days.
+* Supplementary: 48 wallets traded again; **Spearman −0.29, one-sided p = 0.98**. No evidence that the ranking persists; if anything a weak REVERSAL (a two-sided reading
+  of n = 48, rho = −0.29 is about p ≈ 0.05, but the test was defined one-sided and this was not a pre-specified hypothesis, so it is reported, not claimed). The better half
+  had a higher MEAN after-split return (+3.3 % vs −1.9 %) while the rank correlation is negative: a few extreme returns dominate the means, which is why the rank statistic is the one to read.
+* Coverage: 13 gaps ≈ 11 400 blocks ≈ 38 h of 14.4 days (~11 %). The last 12 runs (from 7 Nov, with status files) all ran without a recorded failure.
+* Merge: 73 disagreeing duplicates quarantined.
