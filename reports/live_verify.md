@@ -1,0 +1,59 @@
+# Live verification (real chain data)
+
+## ethereum: PASS
+```
+{
+ "chain": "ethereum",
+ "checks": {
+  "blocks_contiguous": true,
+  "stored_parent_chain_linked": true,
+  "block_hashes_match_independent_provider": true,
+  "logs_identical_to_independent_provider": true,
+  "resume_continues_without_duplicates": true
+ },
+ "primary": "drpc",
+ "verifier": "publicnode",
+ "ranges": {
+  "primary": 10,
+  "verifier": 1
+ },
+ "ingest_run1": {
+  "blocks": 150,
+  "logs": 89464,
+  "decoded": 88887,
+  "decode_errors": 0,
+  "reorgs": 0,
+  "next_block": 26412106,
+  "head": 26412256,
+  "seconds": 43.3,
+  "notes": [
+   "stopped at max_blocks"
+  ]
+ },
+ "range": [
+  26411956,
+  26412105
+ ],
+ "failover_switches": [],
+ "decoded_by_kind": {
+  "erc20_transfer": 85326,
+  "uniswap_v2_swap": 1051,
+  "uniswap_v3_swap": 2510
+ },
+ "decode_error_examples": [],
+ "log_counts": {
+  "stored": 89464,
+  "independent": 89464,
+  "only_stored": 0,
+  "only_independent": 0
+ },
+ "ingest_run2": {
+  "blocks": 20,
+  "logs": 13603,
+  "reorgs": 0,
+  "next_block": 26412126
+ },
+ "noncanonical_blocks": 0,
+ "passed": true
+}
+```
