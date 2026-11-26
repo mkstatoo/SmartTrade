@@ -1,0 +1,29 @@
+{
+ "at_utc": "2026-11-26 23:12:55",
+ "run_id": "45909274996",
+ "primary": "drpc",
+ "failover": {
+  "chain": [
+   "drpc"
+  ],
+  "switches": []
+ },
+ "window": {
+  "head": 26502580,
+  "discovery": [
+   26498666,
+   26498965
+  ],
+  "watch": [
+   26498966,
+   26502565
+  ]
+ },
+ "integrity": null,
+ "steps_failed": {
+  "ingest_discovery": "RpcError: HTTP 400: {\"id\":157,\"jsonrpc\":\"2.0\",\"error\":{\"message\":\"the method eth_getLogs does not exist/is not available"
+ },
+ "skipped": null,
+ "error": null,
+ "headline": {}
+}
