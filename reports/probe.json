@@ -1,0 +1,372 @@
+{
+ "at_utc": "2026-11-27 22:52:15",
+ "results": [
+  {
+   "chain": "ethereum",
+   "provider": "publicnode",
+   "ok": true,
+   "errors": [],
+   "host": "https://ethereum-rpc.publicnode.com",
+   "head": 26509649,
+   "latency_p50_ms": 50,
+   "latency_p95_ms": 59,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 0.3,
+     "logs": 585,
+     "error": null
+    },
+    "10": {
+     "ok": false,
+     "seconds": 0.05,
+     "logs": null,
+     "error": "RpcError: Please specify an address in your request or, to remove restrictions, order a dedicated full node here: https://www.alln"
+    }
+   },
+   "max_log_range_blocks": 1,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   },
+   "agreement_block_window": [
+    26509549,
+    26509551
+   ],
+   "agrees_with_majority": true,
+   "agreement_log_count": 1140
+  },
+  {
+   "chain": "ethereum",
+   "provider": "llamarpc",
+   "ok": false,
+   "errors": [
+    "RpcError: HTTP 525: {\"type\":\"https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-5xx-"
+   ],
+   "host": "https://eth.llamarpc.com"
+  },
+  {
+   "chain": "ethereum",
+   "provider": "cloudflare",
+   "ok": false,
+   "errors": [
+    "RpcError: Cannot fulfill request"
+   ],
+   "host": "https://cloudflare-eth.com"
+  },
+  {
+   "chain": "ethereum",
+   "provider": "ankr",
+   "ok": false,
+   "errors": [
+    "RpcError: malformed or mismatched JSON-RPC response: {\"jsonrpc\": \"2.0\", \"error\": {\"code\": -32000, \"message\": \"Unauthorized: You mu"
+   ],
+   "host": "https://rpc.ankr.com"
+  },
+  {
+   "chain": "ethereum",
+   "provider": "drpc",
+   "ok": true,
+   "errors": [],
+   "host": "https://eth.drpc.org",
+   "head": 26509649,
+   "latency_p50_ms": 25,
+   "latency_p95_ms": 28,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 0.09,
+     "logs": 585,
+     "error": null
+    },
+    "10": {
+     "ok": true,
+     "seconds": 0.17,
+     "logs": 5319,
+     "error": null
+    },
+    "100": {
+     "ok": false,
+     "seconds": 0.14,
+     "logs": null,
+     "error": "RpcError: query exceeds max results 20000, retry with the range 26509149-26509182"
+    }
+   },
+   "max_log_range_blocks": 10,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   },
+   "agreement_block_window": [
+    26509549,
+    26509551
+   ],
+   "agrees_with_majority": true,
+   "agreement_log_count": 1140
+  },
+  {
+   "chain": "ethereum",
+   "provider": "1rpc",
+   "ok": false,
+   "errors": [
+    "headers: RpcError: HTTP 429: {\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32005,\"message\":\"You have reached the maximum API usage "
+   ],
+   "host": "https://1rpc.io",
+   "head": 26509649,
+   "latency_p50_ms": 168,
+   "latency_p95_ms": 583,
+   "burst_30_errors": 3,
+   "headers_linked": false,
+   "logs_by_range": {
+    "1": {
+     "ok": false,
+     "seconds": 1.26,
+     "logs": null,
+     "error": "RpcError: method not available"
+    }
+   },
+   "max_log_range_blocks": 0,
+   "block_depth_ok": {
+    "10000": false,
+    "100000": false,
+    "1000000": true
+   }
+  },
+  {
+   "chain": "ethereum",
+   "provider": "private-1",
+   "ok": false,
+   "errors": [
+    "RpcError: transport error: URLError"
+   ],
+   "host": "(secret)"
+  },
+  {
+   "chain": "ethereum",
+   "provider": "private-2",
+   "ok": false,
+   "errors": [
+    "RpcError: transport error: URLError"
+   ],
+   "host": "(secret)"
+  },
+  {
+   "chain": "base",
+   "provider": "base-official",
+   "ok": false,
+   "errors": [],
+   "host": "https://mainnet.base.org",
+   "head": 63147490,
+   "latency_p50_ms": 41,
+   "latency_p95_ms": 49,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": false,
+     "seconds": 0.04,
+     "logs": null,
+     "error": "RpcError: HTTP 429: {\"jsonrpc\":\"2.0\",\"id\":53,\"error\":{\"code\":-32011,\"message\":\"request limit reached\"}}"
+    }
+   },
+   "max_log_range_blocks": 0,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   }
+  },
+  {
+   "chain": "base",
+   "provider": "publicnode",
+   "ok": true,
+   "errors": [],
+   "host": "https://base-rpc.publicnode.com",
+   "head": 63147502,
+   "latency_p50_ms": 54,
+   "latency_p95_ms": 59,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 0.05,
+     "logs": 6,
+     "error": null
+    },
+    "10": {
+     "ok": false,
+     "seconds": 0.06,
+     "logs": null,
+     "error": "RpcError: Please specify an address in your request or, to remove restrictions, order a dedicated full node here: https://www.alln"
+    }
+   },
+   "max_log_range_blocks": 1,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   },
+   "agreement_block_window": [
+    63147402,
+    63147404
+   ],
+   "agrees_with_majority": true,
+   "agreement_log_count": 25
+  },
+  {
+   "chain": "base",
+   "provider": "llamarpc",
+   "ok": false,
+   "errors": [
+    "RpcError: HTTP 525: {\"type\":\"https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-5xx-"
+   ],
+   "host": "https://base.llamarpc.com"
+  },
+  {
+   "chain": "base",
+   "provider": "ankr",
+   "ok": false,
+   "errors": [
+    "RpcError: malformed or mismatched JSON-RPC response: {\"jsonrpc\": \"2.0\", \"error\": {\"code\": -32000, \"message\": \"Unauthorized: You mu"
+   ],
+   "host": "https://rpc.ankr.com"
+  },
+  {
+   "chain": "base",
+   "provider": "drpc",
+   "ok": false,
+   "errors": [
+    "headers: RpcError: HTTP 429: {\"id\":43,\"jsonrpc\":\"2.0\",\"error\":{\"message\":\"You reached Public endpoint rate limit, please upgrade "
+   ],
+   "host": "https://base.drpc.org",
+   "head": 63147521,
+   "latency_p50_ms": 24,
+   "latency_p95_ms": 38,
+   "burst_30_errors": 21,
+   "headers_linked": false,
+   "logs_by_range": {
+    "1": {
+     "ok": false,
+     "seconds": 0.04,
+     "logs": null,
+     "error": "RpcError: HTTP 429: {\"id\":44,\"jsonrpc\":\"2.0\",\"error\":{\"message\":\"You reached Public endpoint rate limit, please upgrade "
+    }
+   },
+   "max_log_range_blocks": 0,
+   "block_depth_ok": {
+    "10000": false,
+    "100000": false,
+    "1000000": false
+   }
+  },
+  {
+   "chain": "base",
+   "provider": "1rpc",
+   "ok": true,
+   "errors": [
+    "agreement fetch: HTTP 410: {\"error\":\"This endpoint has been discontinued.\",\"message\":\"For an up to date list of available endpo"
+   ],
+   "host": "https://1rpc.io",
+   "head": 63147526,
+   "latency_p50_ms": 178,
+   "latency_p95_ms": 969,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 1.09,
+     "logs": 9,
+     "error": null
+    },
+    "10": {
+     "ok": true,
+     "seconds": 2.6,
+     "logs": 133,
+     "error": null
+    },
+    "100": {
+     "ok": false,
+     "seconds": 0.15,
+     "logs": null,
+     "error": "RpcError: eth_getLogs is limited to 0 - 50 blocks range"
+    }
+   },
+   "max_log_range_blocks": 10,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   },
+   "agreement_block_window": [
+    63147402,
+    63147404
+   ],
+   "agrees_with_majority": null,
+   "agreement_log_count": null
+  },
+  {
+   "chain": "base",
+   "provider": "private-1",
+   "ok": true,
+   "errors": [],
+   "host": "(secret)",
+   "head": 63147752,
+   "latency_p50_ms": 89,
+   "latency_p95_ms": 135,
+   "burst_30_errors": 0,
+   "headers_linked": true,
+   "logs_by_range": {
+    "1": {
+     "ok": true,
+     "seconds": 0.09,
+     "logs": 46,
+     "error": null
+    },
+    "10": {
+     "ok": true,
+     "seconds": 0.13,
+     "logs": 213,
+     "error": null
+    },
+    "100": {
+     "ok": true,
+     "seconds": 0.2,
+     "logs": 1806,
+     "error": null
+    },
+    "500": {
+     "ok": true,
+     "seconds": 0.39,
+     "logs": 8892,
+     "error": null
+    },
+    "2000": {
+     "ok": false,
+     "seconds": 0.07,
+     "logs": null,
+     "error": "RpcError: Block range is too large"
+    }
+   },
+   "max_log_range_blocks": 500,
+   "block_depth_ok": {
+    "10000": true,
+    "100000": true,
+    "1000000": true
+   },
+   "agreement_block_window": [
+    63147402,
+    63147404
+   ],
+   "agrees_with_majority": true,
+   "agreement_log_count": 25
+  }
+ ]
+}

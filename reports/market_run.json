@@ -1,0 +1,1021 @@
+{
+ "at_utc": "2026-11-27 22:54:01",
+ "chain": "ethereum",
+ "steps": {
+  "ingest_discovery": {
+   "ok": true,
+   "seconds": 17.8
+  },
+  "discover_pools": {
+   "ok": true,
+   "seconds": 264.3
+  },
+  "ingest_watch": {
+   "ok": true,
+   "seconds": 571.0
+  },
+  "ingest_fresh_tail": {
+   "ok": true,
+   "seconds": 4.2
+  },
+  "chainlink_check": {
+   "ok": true,
+   "seconds": 0.4
+  },
+  "eth_price_by_pool": {
+   "ok": true,
+   "seconds": 0.1
+  },
+  "collect_tail_receipts": {
+   "ok": true,
+   "seconds": 66.5
+  },
+  "derive_tail": {
+   "ok": true,
+   "seconds": 0.5
+  },
+  "state_check": {
+   "ok": true,
+   "seconds": 43.7
+  },
+  "collect_receipts": {
+   "ok": true,
+   "seconds": 1023.7
+  },
+  "derive_trades": {
+   "ok": true,
+   "seconds": 5.4
+  },
+  "second_provider_check": {
+   "ok": true,
+   "seconds": 6.9
+  },
+  "cross_pool_prices": {
+   "ok": true,
+   "seconds": 0.1
+  },
+  "export_trades": {
+   "ok": true,
+   "seconds": 0.2
+  },
+  "volume_coverage": {
+   "ok": true,
+   "seconds": 0.1
+  },
+  "unattributed_beneficiaries": {
+   "ok": true,
+   "seconds": 6.6
+  },
+  "tx_targets": {
+   "ok": true,
+   "seconds": 0.1
+  },
+  "wallet_summary": {
+   "ok": true,
+   "seconds": 0.2
+  }
+ },
+ "headline": {
+  "window blocks (discovery + watch)": "300 + 3600",
+  "pools watched": 33,
+  "receipts stored / errors / inconsistent": "21775 / 0 / 0",
+  "trades (confirmed / mismatch)": "3298 (3161 / 137)",
+  "share of swap txs that became a trade": 0.343,
+  "chainlink check": "pass",
+  "second provider check": true,
+  "balance-state check": "pass",
+  "cross-pool price deviation (median / max %)": "0.056822196964825974 / 1.0776678032233877",
+  "wallets with a confirmed trade": 1035,
+  "integrity": "no integrity problem found by the checks above"
+ },
+ "params": {
+  "discovery_blocks": 300,
+  "watch_blocks": 3600,
+  "top_k": 30,
+  "receipt_limit": 150000,
+  "confirmations": 12
+ },
+ "primary": "drpc",
+ "verifier": "publicnode",
+ "getlogs_range": 10,
+ "failover": {
+  "chain": [
+   "drpc"
+  ],
+  "switches": []
+ },
+ "window": {
+  "head": 26509665,
+  "discovery": [
+   26505751,
+   26506050
+  ],
+  "watch": [
+   26506051,
+   26509725
+  ]
+ },
+ "discovery_ingest": {
+  "blocks": 300,
+  "logs": 6448,
+  "decoded": 6448,
+  "decode_errors": 0,
+  "reorgs": 0,
+  "next_block": 26506051,
+  "notes": [
+   "stopped at max_blocks"
+  ]
+ },
+ "discovery": {
+  "swaps_seen": 6448,
+  "pools_seen": 976,
+  "candidates": 300,
+  "verified": 233,
+  "rejected_unverified": 67,
+  "dropped_tokens": [],
+  "unpriced_swaps": {
+   "no_eth_price": 14,
+   "no_quote_leg": 109,
+   "degenerate_swap": 6
+  },
+  "eth_points": 804,
+  "eth_outliers_dropped": 1,
+  "constants": {
+   "0xc02aaa39": true,
+   "0xa0b86991": true,
+   "0xdac17f95": true,
+   "0x6b175474": true
+  },
+  "pools": [
+   {
+    "pool": "0x56534741cd8b152df6d48adf7ac51f75169a83b2",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 500,
+    "pair": "WBTC/USDT",
+    "swaps": 74,
+    "usd_volume": 823406.09688
+   },
+   {
+    "pool": "0x4585fe77225b41b697c938b018e2ac67ac5a20c0",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 500,
+    "pair": "WBTC/WETH",
+    "swaps": 25,
+    "usd_volume": 128500.14659913223
+   },
+   {
+    "pool": "0x109830a1aaad605bbf02a9dfa7b0b92ec2fb7daa",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 100,
+    "pair": "wstETH/WETH",
+    "swaps": 21,
+    "usd_volume": 104532.25432995585
+   },
+   {
+    "pool": "0xa43fe16908251ee70ef74718545e4fe6c5ccec9f",
+    "role": "watch",
+    "kind": "uniswap_v2",
+    "fee": null,
+    "pair": "PEPE/WETH",
+    "swaps": 28,
+    "usd_volume": 56073.06062615923
+   },
+   {
+    "pool": "0xfaa318479b7755b2dbfdd34dc306cb28b420ad12",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 500,
+    "pair": "UNI/WETH",
+    "swaps": 74,
+    "usd_volume": 50850.404628870645
+   },
+   {
+    "pool": "0x09c5f9b273de8d41e5dce0867ca67e78c92a3a32",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 100,
+    "pair": "cirBTC/USDC",
+    "swaps": 60,
+    "usd_volume": 49119.441759
+   },
+   {
+    "pool": "0x4674abc5796e1334b5075326b39b748bee9eaa34",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 500,
+    "pair": "AAVE/WETH",
+    "swaps": 68,
+    "usd_volume": 42705.31139058403
+   },
+   {
+    "pool": "0x629d22e6eeac46a11dbc96be93b90aee9309be4c",
+    "role": "watch",
+    "kind": "uniswap_v2",
+    "fee": null,
+    "pair": "AURORA/WETH",
+    "swaps": 125,
+    "usd_volume": 42630.20940587076
+   },
+   {
+    "pool": "0xe6d7ebb9f1a9519dc06d557e03c522d53520e76a",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 100,
+    "pair": "USDe/USDC",
+    "swaps": 4,
+    "usd_volume": 41154.257082
+   },
+   {
+    "pool": "0x41a561b972039a9ccb975a4c17b84c9f95099e15",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 500,
+    "pair": "ADI/USDC",
+    "swaps": 87,
+    "usd_volume": 34390.826814
+   },
+   {
+    "pool": "0xa6cc3c2531fdaa6ae1a3ca84c2855806728693e8",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 3000,
+    "pair": "LINK/WETH",
+    "swaps": 10,
+    "usd_volume": 30002.821361854712
+   },
+   {
+    "pool": "0xe9bbb07d23422835eb823e9efe0a44f57b651da0",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 100,
+    "pair": "Kuro/WETH",
+    "swaps": 39,
+    "usd_volume": 16399.210406552414
+   },
+   {
+    "pool": "0xb1b645dfaa869a778b03f8eacff481c62a821642",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 100,
+    "pair": "USDC/PROS",
+    "swaps": 97,
+    "usd_volume": 14997.787774
+   },
+   {
+    "pool": "0x625c0eb99fd95a18314411dd0f8e0e7e985d1001",
+    "role": "watch",
+    "kind": "uniswap_v2",
+    "fee": null,
+    "pair": "PYRA/WETH",
+    "swaps": 30,
+    "usd_volume": 14893.98607042275
+   },
+   {
+    "pool": "0x5d4f3c6fa16908609bac31ff148bd002aa6b8c83",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 500,
+    "pair": "LINK/WETH",
+    "swaps": 55,
+    "usd_volume": 13631.626495896662
+   },
+   {
+    "pool": "0x5ae13baaef0620fdae1d355495dc51a17adb4082",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 500,
+    "pair": "PAXG/USDC",
+    "swaps": 25,
+    "usd_volume": 13442.455987
+   },
+   {
+    "pool": "0x433a00819c771b33fa7223a5b3499b24fbcd1bbc",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 10000,
+    "pair": "wTAO/WETH",
+    "swaps": 10,
+    "usd_volume": 12950.071150413003
+   },
+   {
+    "pool": "0xe12959c09e80f3228c52c517cf70ea6eb13d5e10",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 100,
+    "pair": "cirBTC/WETH",
+    "swaps": 29,
+    "usd_volume": 12906.845445780164
+   },
+   {
+    "pool": "0xc3db44adc1fcdfd5671f555236eae49f4a8eea18",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 3000,
+    "pair": "ENA/WETH",
+    "swaps": 17,
+    "usd_volume": 12686.92239562908
+   },
+   {
+    "pool": "0xa29fe6ef9592b5d408cca961d0fb9b1faf497d6d",
+    "role": "watch",
+    "kind": "uniswap_v2",
+    "fee": null,
+    "pair": "WETH/DEXT",
+    "swaps": 49,
+    "usd_volume": 12677.648475819115
+   },
+   {
+    "pool": "0x99ac8ca7087fa4a2a1fb6357269965a2014abc35",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 3000,
+    "pair": "WBTC/USDC",
+    "swaps": 6,
+    "usd_volume": 11180.398401
+   },
+   {
+    "pool": "0x127452f3f9cdc0389b0bf59ce6131aa3bd763598",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 3000,
+    "pair": "WETH/SOL",
+    "swaps": 4,
+    "usd_volume": 10657.030818844665
+   },
+   {
+    "pool": "0x52c77b0cb827afbad022e6d6caf2c44452edbc39",
+    "role": "watch",
+    "kind": "uniswap_v2",
+    "fee": null,
+    "pair": "WETH/SPX",
+    "swaps": 20,
+    "usd_volume": 10143.524781536511
+   },
+   {
+    "pool": "0x89a67c6dee35db9815da2fb9191f0998a8b37c39",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 10000,
+    "pair": "WPRL/USDT",
+    "swaps": 17,
+    "usd_volume": 9913.660869
+   },
+   {
+    "pool": "0xd180ae8974fd38748cfad6ee43c1f0b86b5d7023",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 3000,
+    "pair": "USDC/PLNdt",
+    "swaps": 3,
+    "usd_volume": 9441.230369
+   },
+   {
+    "pool": "0xe898877656f0579ffc4cafd335134a38e8e270e4",
+    "role": "watch",
+    "kind": "uniswap_v2",
+    "fee": null,
+    "pair": "WETH/KURO",
+    "swaps": 84,
+    "usd_volume": 8915.4836585661
+   },
+   {
+    "pool": "0xc027c6897dd4ee14145d01de9fb2dea75e8637c7",
+    "role": "watch",
+    "kind": "uniswap_v2",
+    "fee": null,
+    "pair": "POPO/WETH",
+    "swaps": 76,
+    "usd_volume": 8767.527860275743
+   },
+   {
+    "pool": "0xa3f558aebaecaf0e11ca4b2199cc5ed341edfd74",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 3000,
+    "pair": "LDO/WETH",
+    "swaps": 11,
+    "usd_volume": 8571.365004310104
+   },
+   {
+    "pool": "0x9da454e2798840f8eb5fa9044165dff321a32bb4",
+    "role": "watch",
+    "kind": "uniswap_v2",
+    "fee": null,
+    "pair": "WETH/zc",
+    "swaps": 41,
+    "usd_volume": 8202.578595369272
+   },
+   {
+    "pool": "0x9db9e0e53058c89e5b94e29621a205198648425b",
+    "role": "watch",
+    "kind": "uniswap_v3",
+    "fee": 3000,
+    "pair": "WBTC/USDT",
+    "swaps": 4,
+    "usd_volume": 8036.814466
+   },
+   {
+    "pool": "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640",
+    "role": "reference",
+    "kind": "uniswap_v3",
+    "fee": 500,
+    "pair": "USDC/WETH",
+    "swaps": 196,
+    "usd_volume": 1256478.266526
+   },
+   {
+    "pool": "0xe0554a476a092703abdb3ef35c80e0d76d32939f",
+    "role": "reference",
+    "kind": "uniswap_v3",
+    "fee": 100,
+    "pair": "USDC/WETH",
+    "swaps": 491,
+    "usd_volume": 643850.222833
+   },
+   {
+    "pool": "0x11b815efb8f581194ae79006d24e0d814b7697f6",
+    "role": "reference",
+    "kind": "uniswap_v3",
+    "fee": 500,
+    "pair": "WETH/USDT",
+    "swaps": 112,
+    "usd_volume": 201275.169834
+   }
+  ]
+ },
+ "watch_ingest": {
+  "blocks": 3600,
+  "logs": 25906,
+  "decoded": 25906,
+  "decode_errors": 0,
+  "reorgs": 0,
+  "next_block": 26509651,
+  "notes": [
+   "stopped at max_blocks"
+  ],
+  "fresh_tail": {
+   "blocks": 75,
+   "logs": 434,
+   "next_block": 26509726
+  }
+ },
+ "eth_series": {
+  "points": 10425,
+  "outliers_dropped": 6,
+  "min": 1615.485362458062,
+  "max": 1760.230308224268
+ },
+ "chainlink": {
+  "feed": "0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419",
+  "samples": [
+   {
+    "block": 26509720,
+    "blocks_behind_head": 17,
+    "chainlink": 1658.72,
+    "from_swaps": 1658.037607155283,
+    "deviation_pct": 0.041139724891307586,
+    "feed_updated_at_block": 26509705,
+    "feed_age_blocks": 15,
+    "from_swaps_at_feed_update": 1660.7371412642583,
+    "lag_corrected_deviation_pct": 0.12160830425016128
+   },
+   {
+    "block": 26509721,
+    "blocks_behind_head": 16,
+    "chainlink": 1658.72,
+    "from_swaps": 1657.9259717446487,
+    "deviation_pct": 0.04786993919114461,
+    "feed_updated_at_block": 26509705,
+    "feed_age_blocks": 16,
+    "from_swaps_at_feed_update": 1660.7371412642583,
+    "lag_corrected_deviation_pct": 0.12160830425016128
+   },
+   {
+    "block": 26509722,
+    "blocks_behind_head": 15,
+    "chainlink": 1658.72,
+    "from_swaps": 1658.5476552251648,
+    "deviation_pct": 0.01039022709288344,
+    "feed_updated_at_block": 26509705,
+    "feed_age_blocks": 17,
+    "from_swaps_at_feed_update": 1660.7371412642583,
+    "lag_corrected_deviation_pct": 0.12160830425016128
+   },
+   {
+    "block": 26509723,
+    "blocks_behind_head": 14,
+    "chainlink": 1658.72,
+    "from_swaps": 1657.4457403224665,
+    "deviation_pct": 0.07682186731536922,
+    "feed_updated_at_block": 26509705,
+    "feed_age_blocks": 18,
+    "from_swaps_at_feed_update": 1660.7371412642583,
+    "lag_corrected_deviation_pct": 0.12160830425016128
+   },
+   {
+    "block": 26509724,
+    "blocks_behind_head": 13,
+    "chainlink": 1658.72,
+    "from_swaps": 1657.496149127655,
+    "deviation_pct": 0.0737828489645615,
+    "feed_updated_at_block": 26509705,
+    "feed_age_blocks": 19,
+    "from_swaps_at_feed_update": 1660.7371412642583,
+    "lag_corrected_deviation_pct": 0.12160830425016128
+   },
+   {
+    "block": 26509725,
+    "blocks_behind_head": 12,
+    "chainlink": 1658.72,
+    "from_swaps": 1657.5093076219887,
+    "deviation_pct": 0.0729895568879207,
+    "feed_updated_at_block": 26509705,
+    "feed_age_blocks": 20,
+    "from_swaps_at_feed_update": 1660.7371412642583,
+    "lag_corrected_deviation_pct": 0.12160830425016128
+   }
+  ],
+  "unavailable": 0,
+  "raw_median_deviation_pct": 0.06042974803953266,
+  "raw_max_deviation_pct": 0.07682186731536922,
+  "basis": "lag_corrected (swap price at the moment the feed last updated)",
+  "median_deviation_pct": 0.12160830425016128,
+  "max_deviation_pct": 0.12160830425016128,
+  "distinct_feed_rounds": 1,
+  "criterion": "pass if >=3 samples, median <= 0.75% and max <= 1.5% on the stated basis (feed threshold 0.5% + swap noise)",
+  "status": "pass"
+ },
+ "eth_price_by_pool": [
+  {
+   "pool": "0xe0554a47",
+   "fee": 100,
+   "swaps": 7917,
+   "median_signed_dev_pct": -0.0058,
+   "median_abs_dev_pct": 0.0202,
+   "p95_abs_dev_pct": 0.1278
+  },
+  {
+   "pool": "0x88e6a0c2",
+   "fee": 500,
+   "swaps": 3130,
+   "median_signed_dev_pct": -0.0069,
+   "median_abs_dev_pct": 0.046,
+   "p95_abs_dev_pct": 0.1575
+  },
+  {
+   "pool": "0x11b815ef",
+   "fee": 500,
+   "swaps": 2587,
+   "median_signed_dev_pct": 0.0931,
+   "median_abs_dev_pct": 0.0949,
+   "p95_abs_dev_pct": 0.1866
+  }
+ ],
+ "state_check": {
+  "candidates": 60,
+  "checked": 60,
+  "exact_match": 60,
+  "unavailable": 0,
+  "mismatches": [],
+  "match_rate": 1.0,
+  "criterion": "pass if >=10 checked and >=90% equal (other transactions of the same wallet in the same block legitimately differ)",
+  "status": "pass"
+ },
+ "receipts": {
+  "stored": 21775,
+  "transfers": 131006,
+  "errors": 0,
+  "inconsistent_with_getlogs": 0,
+  "decode_errors": 0,
+  "notes": []
+ },
+ "trades": {
+  "txs_examined": 21775,
+  "txs_without_receipt": 0,
+  "trades": 3298,
+  "confirmed": 3161,
+  "mismatch": 137,
+  "skips_by_reason": {
+   "no_sender_transfer": 8554,
+   "quote_only": 12164,
+   "no_eth_price": 2,
+   "zero_net_flow": 215
+  },
+  "eth_points": 10425,
+  "eth_outliers_dropped": 6
+ },
+ "attribution": {
+  "swap_txs_excluding_quote_only": 9611,
+  "txs_with_a_trade": 3297,
+  "share_with_a_trade": 0.343,
+  "confirmed_share_of_trades": 0.9585
+ },
+ "second_provider": {
+  "receipts_checked": 50,
+  "receipt_mismatches": [],
+  "receipt_fetch_errors": 0,
+  "trade_wallets_checked": 50,
+  "wallet_mismatches": [],
+  "tx_fetch_errors": 0,
+  "passed": true
+ },
+ "cross_pool_prices": {
+  "buckets_compared": 280,
+  "tokens_compared": 3,
+  "median_deviation_pct": 0.056822196964825974,
+  "p90_deviation_pct": 0.1809289085405174,
+  "max_deviation_pct": 1.0776678032233877
+ },
+ "trade_export": {
+  "trades": 3298,
+  "bytes": 523574
+ },
+ "volume_coverage": {
+  "priced_swaps_usd_total": 59078163.65376214,
+  "by_class": {
+   "skipped:no_sender_transfer": {
+    "usd": 33725739.64822596,
+    "share": 0.5709,
+    "swaps": 6943
+   },
+   "skipped:quote_only": {
+    "usd": 20456207.224501148,
+    "share": 0.3463,
+    "swaps": 2201
+   },
+   "attributed_to_a_wallet": {
+    "usd": 4000843.3722394616,
+    "share": 0.0677,
+    "swaps": 3332
+   },
+   "skipped:zero_net_flow": {
+    "usd": 895164.1932065688,
+    "share": 0.0152,
+    "swaps": 219
+   },
+   "skipped:no_eth_price": {
+    "usd": 209.215589,
+    "share": 0.0,
+    "swaps": 1
+   }
+  },
+  "note": "volume-weighted: the share of traded USD whose wallet we know; txs counted without weights would overstate it"
+ },
+ "unattributed_beneficiaries": {
+  "sampled": 300,
+  "final_recipient_is": {
+   "no_final_recipient": 80,
+   "contract": 203,
+   "eoa": 17
+  },
+  "code_lookup_errors": 0,
+  "most_repeated_recipients": [
+   {
+    "to": "0x51c72848c68a965f66fa7a88855f9f7784502a7f",
+    "txs": 33
+   },
+   {
+    "to": "0xe41698520e4817b55c1841859a36847d50f0c82f",
+    "txs": 19
+   },
+   {
+    "to": "0x43f3c2464359f30025fa0374a0f080a7e24aafa8",
+    "txs": 17
+   },
+   {
+    "to": "0x000000000004444c5dc75cb358380d2e3de08a90",
+    "txs": 14
+   },
+   {
+    "to": "0x278d858f05b94576c1e6f73285886876ff6ef8d2",
+    "txs": 13
+   }
+  ],
+  "note": "diagnostic only: an EOA recipient suggests a real user behind a relayer (a possible later attribution rule); a contract suggests a bot or aggregator"
+ },
+ "tx_targets": {
+  "top_to_for_txs_with_a_trade": [
+   {
+    "to": "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
+    "txs": 971
+   },
+   {
+    "to": "0xe592427a0aece92de3edee1f18e0157c05861564",
+    "txs": 801
+   },
+   {
+    "to": "0x23617e59a5925b2a4bf75d73ff6711cd0b29de85",
+    "txs": 157
+   },
+   {
+    "to": "0xba412d8b36bfd7d65dff5cc0df7b3c29a7eae687",
+    "txs": 126
+   },
+   {
+    "to": "0x00000000e91fc5bad977c0cc4ad60557c06886a2",
+    "txs": 108
+   },
+   {
+    "to": "0x19082f25803d0da16902b7d3c0a78d1cf2bce0c3",
+    "txs": 94
+   },
+   {
+    "to": "0x8feab81d36e7576107d5de0758c1b839be31b4f6",
+    "txs": 83
+   },
+   {
+    "to": "0x4313c378cc91ea583c91387b9216e2c03096b27f",
+    "txs": 83
+   }
+  ],
+  "top_to_for_unattributed_txs": [
+   {
+    "to": "0x51c72848c68a965f66fa7a88855f9f7784502a7f",
+    "txs": 1498
+   },
+   {
+    "to": "0xe41698520e4817b55c1841859a36847d50f0c82f",
+    "txs": 857
+   },
+   {
+    "to": "0x278d858f05b94576c1e6f73285886876ff6ef8d2",
+    "txs": 546
+   },
+   {
+    "to": "0x43f3c2464359f30025fa0374a0f080a7e24aafa8",
+    "txs": 451
+   },
+   {
+    "to": "0x4337084d9e255ff0702461cf8895ce9e3b5ff108",
+    "txs": 325
+   },
+   {
+    "to": "0xab830fcccb4f20bad23b7669d58cb35a96d57d5a",
+    "txs": 226
+   },
+   {
+    "to": "0xb5f650e96ed10184e1be22390fddb0a0c0f024d0",
+    "txs": 164
+   },
+   {
+    "to": "0x836b336fca26913176efc45a5a6e5e72cd7bd13b",
+    "txs": 163
+   }
+  ],
+  "unattributed_txs": 7400,
+  "note": "addresses are not labelled here; a 'to' that is frequent among attributed trades is a public router, one that appears only among unattributed txs is typically a private bot contract"
+ },
+ "wallets": {
+  "pnl_overview": {
+   "wallets_with_a_known_cost_closed_trade": 151,
+   "closed_trades_with_known_cost": 633,
+   "win_rate_on_those": 0.2054,
+   "total_realized_known_cost_usd": -2742.9,
+   "total_unrealized_usd_all_wallets": -13458.8,
+   "top_by_realized_known_cost": [
+    {
+     "wallet": "0x07dba935fad3f0f645f1d88791616adcd8a263f0",
+     "closed_trades": 3,
+     "closed_with_known_cost": 3,
+     "wins": 3,
+     "realized_pnl_known_cost_usd": 559.7707809772623,
+     "unrealized_pnl_usd": 3.1451827723657484,
+     "fees_in_trades_usd": 6.656902113501287,
+     "sells_with_unknown_basis_usd": 0.0,
+     "open_positions_marked_at_last_price": 1
+    },
+    {
+     "wallet": "0x5f3397388fcc68edff1476650c29c2306c84387c",
+     "closed_trades": 1,
+     "closed_with_known_cost": 1,
+     "wins": 1,
+     "realized_pnl_known_cost_usd": 198.93267358626824,
+     "unrealized_pnl_usd": 0.48593496930124164,
+     "fees_in_trades_usd": 0.9733351093867433,
+     "sells_with_unknown_basis_usd": 0.0,
+     "open_positions_marked_at_last_price": 1
+    },
+    {
+     "wallet": "0xf66e0996017b4021121a14b0ae54dd43a0e9f615",
+     "closed_trades": 1,
+     "closed_with_known_cost": 1,
+     "wins": 1,
+     "realized_pnl_known_cost_usd": 170.4886001729192,
+     "unrealized_pnl_usd": 0.0,
+     "fees_in_trades_usd": 1.6661962104619026,
+     "sells_with_unknown_basis_usd": 0.0,
+     "open_positions_marked_at_last_price": 0
+    },
+    {
+     "wallet": "0x90e01c743f35cec24d5465b9f4ea6f4d2fe3f0bd",
+     "closed_trades": 3,
+     "closed_with_known_cost": 3,
+     "wins": 3,
+     "realized_pnl_known_cost_usd": 117.14086239246261,
+     "unrealized_pnl_usd": 0.0,
+     "fees_in_trades_usd": 0.266306919234201,
+     "sells_with_unknown_basis_usd": 0.0,
+     "open_positions_marked_at_last_price": 0
+    },
+    {
+     "wallet": "0x08d87291f78145eb79cd2ef64560b75bf157c0ce",
+     "closed_trades": 2,
+     "closed_with_known_cost": 2,
+     "wins": 2,
+     "realized_pnl_known_cost_usd": 101.30505596463881,
+     "unrealized_pnl_usd": 0.0,
+     "fees_in_trades_usd": 3.473189808943095,
+     "sells_with_unknown_basis_usd": 0.0,
+     "open_positions_marked_at_last_price": 0
+    },
+    {
+     "wallet": "0xd072ec18b28fc4d56bf3a3d9450064dd8ef175d3",
+     "closed_trades": 1,
+     "closed_with_known_cost": 1,
+     "wins": 1,
+     "realized_pnl_known_cost_usd": 89.04713492246388,
+     "unrealized_pnl_usd": 0.0,
+     "fees_in_trades_usd": 13.844024640385005,
+     "sells_with_unknown_basis_usd": 0.0,
+     "open_positions_marked_at_last_price": 0
+    },
+    {
+     "wallet": "0x249b5ea60d08badb52c4b3970268c1458d6be2b2",
+     "closed_trades": 1,
+     "closed_with_known_cost": 1,
+     "wins": 1,
+     "realized_pnl_known_cost_usd": 72.28056388292246,
+     "unrealized_pnl_usd": 0.0,
+     "fees_in_trades_usd": 0.09927052141068021,
+     "sells_with_unknown_basis_usd": 0.0,
+     "open_positions_marked_at_last_price": 0
+    },
+    {
+     "wallet": "0x7efeabe4db8634a499045659179b406e9e56774a",
+     "closed_trades": 1,
+     "closed_with_known_cost": 1,
+     "wins": 1,
+     "realized_pnl_known_cost_usd": 66.68515561856721,
+     "unrealized_pnl_usd": 0.0,
+     "fees_in_trades_usd": 8.889480322730517,
+     "sells_with_unknown_basis_usd": 0.0,
+     "open_positions_marked_at_last_price": 0
+    },
+    {
+     "wallet": "0x344f4f974161e30df31da2b1e0db66b5f8604aaa",
+     "closed_trades": 1,
+     "closed_with_known_cost": 1,
+     "wins": 1,
+     "realized_pnl_known_cost_usd": 56.85595014668918,
+     "unrealized_pnl_usd": 0.0,
+     "fees_in_trades_usd": 1.0466058436143129,
+     "sells_with_unknown_basis_usd": 0.0,
+     "open_positions_marked_at_last_price": 0
+    },
+    {
+     "wallet": "0xa607ae1130ab93bcb5ee34d9ce5cfc7667008e33",
+     "closed_trades": 2,
+     "closed_with_known_cost": 2,
+     "wins": 2,
+     "realized_pnl_known_cost_usd": 48.209098693163114,
+     "unrealized_pnl_usd": 0.0,
+     "fees_in_trades_usd": 5.163555862614818,
+     "sells_with_unknown_basis_usd": 0.0,
+     "open_positions_marked_at_last_price": 0
+    }
+   ],
+   "bottom_by_realized_known_cost": [
+    {
+     "wallet": "0x467b0845f6c25528fd784f48046fbc5b4184ed3b",
+     "closed_trades": 2,
+     "closed_with_known_cost": 1,
+     "wins": 0,
+     "realized_pnl_known_cost_usd": -381.8326388220381,
+     "unrealized_pnl_usd": 0.0,
+     "fees_in_trades_usd": 5.264845628893438,
+     "sells_with_unknown_basis_usd": 798.0810098813296,
+     "open_positions_marked_at_last_price": 0
+    },
+    {
+     "wallet": "0xc5cfc5ed5787c189a59af10237c654cbbaf9bd4e",
+     "closed_trades": 1,
+     "closed_with_known_cost": 1,
+     "wins": 0,
+     "realized_pnl_known_cost_usd": -352.76235576624595,
+     "unrealized_pnl_usd": 0.0,
+     "fees_in_trades_usd": 2.2701191892429295,
+     "sells_with_unknown_basis_usd": 0.0,
+     "open_positions_marked_at_last_price": 0
+    },
+    {
+     "wallet": "0xc0702ae0374f83fc3ba71ce2b30a323b09ec19da",
+     "closed_trades": 1,
+     "closed_with_known_cost": 1,
+     "wins": 0,
+     "realized_pnl_known_cost_usd": -339.029885683003,
+     "unrealized_pnl_usd": 0.0,
+     "fees_in_trades_usd": 0.31617208268876446,
+     "sells_with_unknown_basis_usd": 0.0,
+     "open_positions_marked_at_last_price": 0
+    },
+    {
+     "wallet": "0xb096803bd36f3699d8be3560a2e14cf1cd33f746",
+     "closed_trades": 2,
+     "closed_with_known_cost": 2,
+     "wins": 1,
+     "realized_pnl_known_cost_usd": -259.608779810591,
+     "unrealized_pnl_usd": 0.0,
+     "fees_in_trades_usd": 36.558272978005576,
+     "sells_with_unknown_basis_usd": 0.0,
+     "open_positions_marked_at_last_price": 0
+    },
+    {
+     "wallet": "0xaacf653155f8d91a8d208e04cba3cfedc0d364a3",
+     "closed_trades": 1,
+     "closed_with_known_cost": 1,
+     "wins": 0,
+     "realized_pnl_known_cost_usd": -192.43988324690278,
+     "unrealized_pnl_usd": 241.14116705565232,
+     "fees_in_trades_usd": 3.4831706472224093,
+     "sells_with_unknown_basis_usd": 0.0,
+     "open_positions_marked_at_last_price": 1
+    }
+   ],
+   "unrealized_caveat": "marked at the LAST execution price seen in this window; in thin pools that price is not what a position could be sold for, so treat it as indicative only",
+   "caveat": "observed only inside this window: no history before it, so cost basis of earlier holdings is unknown (excluded, never invented); wallets are tx.from only; execution price only (no off-chain costs); a ranking from one window is NOT evidence of skill"
+  },
+  "wallets": 1117,
+  "wallets_with_confirmed_trade": 1035,
+  "wallets_with_2plus_trades": 393,
+  "top_by_usd": [
+   {
+    "wallet": "0x63265e50ff8e7722ebc40034700e86b0412c900b",
+    "trades": 1,
+    "usd": 511289.2239465817
+   },
+   {
+    "wallet": "0x2e0929bd71c21cfc66dce799b132f979ff8db7a0",
+    "trades": 2,
+    "usd": 460724.525466479
+   },
+   {
+    "wallet": "0x6cc60a0b57bc882a0471980d0e2d4ad7ddf3c4bd",
+    "trades": 2,
+    "usd": 217284.0914165761
+   },
+   {
+    "wallet": "0x9675a1bf453c993ab6f825454bee11af87001872",
+    "trades": 1,
+    "usd": 177284.36891
+   },
+   {
+    "wallet": "0xaaeacf2fdd6ddca09028c1b50c8a6c873bb8dc50",
+    "trades": 1,
+    "usd": 145277.786565
+   },
+   {
+    "wallet": "0x9bda4f5724369799e17952eabaf7f3b76832140c",
+    "trades": 3,
+    "usd": 143480.81216229752
+   },
+   {
+    "wallet": "0xa3956ea154715c1934f36374c24c44ab187e7c05",
+    "trades": 2,
+    "usd": 138509.41101539964
+   },
+   {
+    "wallet": "0xab79adfcc70f1eda3f2bdc4a7aa2b4dc30c5e45e",
+    "trades": 3,
+    "usd": 111878.152266
+   },
+   {
+    "wallet": "0xd383165100047d9b3691eebcbb490f481f6ada2c",
+    "trades": 2,
+    "usd": 105606.412138
+   },
+   {
+    "wallet": "0x72574eeb16d5e31793bd0d4b4449fd32547e1d47",
+    "trades": 10,
+    "usd": 98239.635731
+   }
+  ],
+  "pnl": {
+   "wallets_with_pnl": 1035,
+   "closed_trades": 1545,
+   "closed_trades_with_known_cost": 633,
+   "sells_with_unknown_basis_usd": 463730.06269280886,
+   "trades_with_unpriced_gas": 0,
+   "note": "window is short: most sells have no earlier buy in the data, so their cost is UNKNOWN and is not turned into a profit or loss"
+  }
+ },
+ "integrity": {
+  "steps_failed": [],
+  "receipts_inconsistent": 0,
+  "chainlink_failed": false,
+  "second_provider_failed": false,
+  "state_check_failed": false
+ }
+}
